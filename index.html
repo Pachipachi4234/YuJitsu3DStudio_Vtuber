@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu 3D Studio | 2.5D Live2D Engine</title>
+    <title>YuJitsu 3D Studio | 2.5D Live2D Safe Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -18,8 +18,8 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Live2D Edition</span></h1>
-            <p class="text-xs text-gray-400">2.5Dパーツ分離 ＆ 階層ボーンアニメーション</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Safe Edition</span></h1>
+            <p class="text-xs text-gray-400">学タブ対応 2.5Dパーツ分離＆ボーン統合エディタ</p>
         </div>
         <div class="flex gap-2">
             <button id="exportYj3dBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2 rounded font-bold transition disabled:opacity-50" disabled>
@@ -55,11 +55,11 @@
                 </select>
             </div>
 
-            <!-- 回転スライダー (X, Y, Z 完全復活) -->
+            <!-- 回転スライダー -->
             <div class="space-y-3 bg-[#010409] p-3 rounded border border-[#30363d]">
                 <div class="text-xs font-bold text-gray-300">関節角度 (deg)</div>
                 <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>Z回転 (平面関節回転)</span><span id="rotZVal">0°</span></div>
+                    <div class="flex justify-between text-[10px] text-gray-400"><span>Z回転 (平面関節)</span><span id="rotZVal">0°</span></div>
                     <input type="range" id="rotZ" class="w-full" min="-180" max="180" value="0">
                 </div>
                 <div>
@@ -160,7 +160,7 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // 階層ボーン＆UV切り出しパーツ構造定義
+        // パーツ構造定義
         const partsDefinition = [
             { id: "root", name: "腰・全体 (Root)", parent: null, uv: [0, 0, 1, 1], pivot: [0, 0, 0], bounds: [totalW, totalH] },
             { id: "chest", name: "胸・胴体 (Chest)", parent: "root", uv: [0.15, 0.2, 0.7, 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
@@ -170,12 +170,12 @@
         ];
 
         currentYj3dData = { version: "2.0_Live2D", bones: partsDefinition };
-        build25DSlicedModel(texture, partsDefinition, totalW, totalH);
+        buildSafe25DModel(texture, partsDefinition, totalW, totalH);
         statusBadge.innerText = "✨ 表示成功！パーツを選択して回転できます。";
         exportYj3dBtn.disabled = false;
     });
 
-    function build25DSlicedModel(texture, parts, totalW, totalH) {
+    function buildSafe25DModel(texture, parts, totalW, totalH) {
         if (characterRootGroup) scene.remove(characterRootGroup);
         characterRootGroup = new THREE.Group();
         bonesMap = {};
@@ -189,15 +189,19 @@
             const pH = p.bounds[1];
             const geo = new THREE.PlaneGeometry(pW, pH);
 
-            // UVパーツ切り出しマッピング
+            // エラーを極力回避する安全なUV切り出し
             const uvAttr = geo.attributes.uv;
             for (let i = 0; i < uvAttr.count; i++) {
                 let u = uvAttr.getX(i);
                 let v = uvAttr.getY(i);
-                u = p.uv[0] + u * p.uv[2];
-                v = p.uv[1] + v * p.uv[3];
+                
+                // 0.0 〜 1.0 の範囲に安全にクランプ
+                u = Math.min(Math.max(p.uv[0] + u * p.uv[2], 0), 1);
+                v = Math.min(Math.max(p.uv[1] + v * p.uv[3], 0), 1);
+                
                 uvAttr.setXY(i, u, v);
             }
+            uvAttr.needsUpdate = true;
 
             const mat = new THREE.MeshBasicMaterial({
                 map: texture,
@@ -209,7 +213,7 @@
             mesh.position.set(0, (p.id === 'root') ? totalH / 2 : 0, 0);
             boneGroup.add(mesh);
 
-            // 関節位置の青いインジケーターピン
+            // 関節ピン
             const jointMark = new THREE.Mesh(
                 new THREE.SphereGeometry(0.04, 16, 16),
                 new THREE.MeshBasicMaterial({ color: 0x58a6ff })
@@ -224,7 +228,7 @@
             boneSelect.appendChild(opt);
         });
 
-        // 階層ボーン（親子接続）
+        // 階層結合
         parts.forEach(p => {
             if (p.parent && bonesMap[p.parent]) {
                 bonesMap[p.parent].group.add(bonesMap[p].group);
@@ -240,7 +244,7 @@
         controls.update();
     }
 
-    // スライダー＆角度同期処理
+    // スライダー回転同期
     const rotX = document.getElementById('rotX');
     const rotY = document.getElementById('rotY');
     const rotZ = document.getElementById('rotZ');
@@ -254,7 +258,6 @@
         const valZ = parseFloat(rotZ.value);
 
         const targetGroup = bonesMap[id].group;
-        // 軸方向を修正（X, Y, Zを正しい回転軸に対応）
         targetGroup.rotation.set(
             THREE.MathUtils.degToRad(valX),
             THREE.MathUtils.degToRad(valY),
