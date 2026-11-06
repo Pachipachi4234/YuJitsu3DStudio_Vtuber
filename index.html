@@ -189,13 +189,13 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // クロップ切り抜き定義（ピクセル範囲）
+        // Rootはメッシュなしの親ボーンとし、パーツだけ切り抜いて配置
         const partsDefinition = [
-            { id: "root", name: "腰・全体 (Root)", parent: null, crop: [0, 0, imgW, imgH], pivot: [0, 0, 0], bounds: [totalW, totalH] },
-            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.15, imgH * 0.2, imgW * 0.7, imgH * 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
-            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.05, imgH * 0.0, imgW * 0.9, imgH * 0.45], pivot: [0, 0.6, 0.02], bounds: [totalW * 0.9, totalH * 0.45] },
-            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.55, imgH * 0.25, imgW * 0.4, imgH * 0.4], pivot: [totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] },
-            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.25, imgW * 0.4, imgH * 0.4], pivot: [-totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] }
+            { id: "root", name: "腰・全体 (Root)", parent: null, isPivotOnly: true, pivot: [0, 0, 0] },
+            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.2, imgH * 0.35, imgW * 0.6, imgH * 0.45], pivot: [0, 0.6, 0.01], bounds: [totalW * 0.6, totalH * 0.45] },
+            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.1, 0, imgW * 0.8, imgH * 0.45], pivot: [0, 0.65, 0.02], bounds: [totalW * 0.8, totalH * 0.45] },
+            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.6, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [totalW * 0.25, 0.1, 0.03], bounds: [totalW * 0.35, totalH * 0.35] },
+            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [-totalW * 0.25, 0.1, 0.03], bounds: [totalW * 0.35, totalH * 0.35] }
         ];
 
         const modelGroup = new THREE.Group();
@@ -208,27 +208,29 @@
             const boneGroup = new THREE.Group();
             boneGroup.position.set(...p.pivot);
 
-            // Canvasで画像部分切り抜き
-            const cropCanvas = document.createElement('canvas');
-            cropCanvas.width = p.crop[2];
-            cropCanvas.height = p.crop[3];
-            const ctx = cropCanvas.getContext('2d');
-            ctx.drawImage(imgElement, p.crop[0], p.crop[1], p.crop[2], p.crop[3], 0, 0, p.crop[2], p.crop[3]);
-
-            const texture = new THREE.CanvasTexture(cropCanvas);
-            texture.needsUpdate = true;
-
-            const pW = p.bounds[0];
-            const pH = p.bounds[1];
-            const geo = new THREE.PlaneGeometry(pW, pH);
-            const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(0, (p.id === 'root') ? totalH / 2 : 0, 0);
-            boneGroup.add(mesh);
-
+            // 関節ピン
             const jointMark = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0x58a6ff }));
             boneGroup.add(jointMark);
+
+            // PivotOnly（Rootなど）以外は画像をメッシュ化
+            if (!p.isPivotOnly) {
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = p.crop[2];
+                cropCanvas.height = p.crop[3];
+                const ctx = cropCanvas.getContext('2d');
+                ctx.drawImage(imgElement, p.crop[0], p.crop[1], p.crop[2], p.crop[3], 0, 0, p.crop[2], p.crop[3]);
+
+                const texture = new THREE.CanvasTexture(cropCanvas);
+                texture.needsUpdate = true;
+
+                const pW = p.bounds[0];
+                const pH = p.bounds[1];
+                const geo = new THREE.PlaneGeometry(pW, pH);
+                const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+
+                const mesh = new THREE.Mesh(geo, mat);
+                boneGroup.add(mesh);
+            }
 
             createdGroups[p.id] = boneGroup;
             bonesMap[p.id] = { group: boneGroup, data: p };
