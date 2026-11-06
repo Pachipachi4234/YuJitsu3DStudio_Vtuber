@@ -24,7 +24,6 @@
             <p class="text-xs text-gray-400">画像1枚で即VTuber！Webカメラトラッキング対応</p>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 背景色切り替え -->
             <span class="text-xs text-gray-400">背景:</span>
             <button id="bgDark" class="bg-btn bg-[#0d1117] text-white">Dark</button>
             <button id="bgGreen" class="bg-btn bg-[#00ff00] text-black">GB (緑)</button>
@@ -41,17 +40,15 @@
 
     <!-- メインエリア -->
     <div class="flex-1 flex gap-4 min-h-0">
-        
         <!-- 左パネル -->
         <div class="w-72 panel p-4 flex flex-col gap-4 overflow-y-auto flex-none">
-            
             <div class="border-b border-[#30363d] pb-3 space-y-2">
                 <h2 class="text-sm font-bold text-[#79c0ff]">🖼️ VTuber立ち絵設定</h2>
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
                 <p class="text-[10px] text-gray-400">※画像を選ぶと即座に3D表示されます</p>
             </div>
 
-            <!-- トラッキング状態感度 -->
+            <!-- トラッキング設定 -->
             <div class="space-y-3 bg-[#010409] p-3 rounded border border-[#30363d]">
                 <div class="text-xs font-bold text-gray-300">⚙️ トラッキング連動設定</div>
                 <div>
@@ -63,37 +60,24 @@
                     <input type="range" id="bodySens" class="w-full" min="0" max="0.8" step="0.05" value="0.3">
                 </div>
             </div>
-
-            <div class="mt-auto text-[11px] text-gray-400 bg-[#010409] p-3 rounded border border-[#30363d] space-y-1">
-                <p class="font-bold text-[#58a6ff]">💡 使い方</p>
-                <p>1. 立ち絵画像を選択</p>
-                <p>2. 上の「Webカメラトラッキング開始」を押す</p>
-                <p>3. カメラに向かって頭を動かすと連動！</p>
-            </div>
         </div>
 
         <!-- 右：3Dビューポート -->
         <div class="flex-1 panel relative overflow-hidden flex flex-col">
             <div id="canvasContainer" class="w-full flex-1"></div>
-            
-            <!-- カメラ（隠し） -->
             <video id="webcam" class="hidden" autoplay playsinline></video>
-            
             <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]">
                 立ち絵画像を選択してください
             </div>
         </div>
-
     </div>
 
 <script>
-    // 1. Three.js セットアップ
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1117);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    // 下半身を画面外にするため、カメラの位置を上半身中心（Y=1.4）にセット
     camera.position.set(0, 1.4, 2.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -114,13 +98,11 @@
     const webcamElement = document.getElementById('webcam');
     const startCamBtn = document.getElementById('startCamBtn');
 
-    // 背景切り替え
     document.getElementById('bgDark').onclick = () => { scene.background = new THREE.Color(0x0d1117); gridHelper.visible = true; };
     document.getElementById('bgGreen').onclick = () => { scene.background = new THREE.Color(0x00ff00); gridHelper.visible = false; };
     document.getElementById('bgRed').onclick = () => { scene.background = new THREE.Color(0xff0000); gridHelper.visible = false; };
     document.getElementById('bgBlue').onclick = () => { scene.background = new THREE.Color(0x0000ff); gridHelper.visible = false; };
 
-    // 2. 画像即時3D化
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -159,27 +141,26 @@
         const chestGeo = new THREE.PlaneGeometry(totalW, totalH * 0.6);
         const chestMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
         const chestMesh = new THREE.Mesh(chestGeo, chestMat);
-        chestMesh.position.set(0, 0, 0);
+        chestMesh.position.set(0, -0.2, 0);
         chestBone.add(chestMesh);
 
-        // 頭部 (Head) ボーン（胴体に接続）
+        // 頭部 (Head) ボーン：首元を回転軸の真中心（0, 0, 0）にする
         headBone = new THREE.Group();
-        headBone.position.set(0, totalH * 0.35, 0.01);
+        headBone.position.set(0, totalH * 0.25, 0.01); // 首の付け根の位置
 
         const headGeo = new THREE.PlaneGeometry(totalW, totalH * 0.5);
         const headMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
         const headMesh = new THREE.Mesh(headGeo, headMat);
-        headMesh.position.set(0, 0.2, 0);
+        headMesh.position.set(0, 0.1, 0); // 首元を中心としたオフセット値に修正
         headBone.add(headMesh);
 
         chestBone.add(headBone);
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        statusBadge.innerText = "✨ VTuberモデル作成完了！カメラを起動してください";
+        statusBadge.innerText = "✨ VTuberモデル修正完了！カメラを起動してください";
     }
 
-    // 3. MediaPipe Face Mesh トラッキング
     let isTracking = false;
     const faceMesh = new FaceMesh({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
@@ -201,7 +182,6 @@
         statusBadge.innerText = "🔴 VTuberトラッキング中！";
         const landmarks = results.multiFaceLandmarks[0];
 
-        // ランドマーク（1: 鼻先, 33: 左目外角, 263: 右目外角, 10: 額, 152: 顎）
         const nose = landmarks[1];
         const leftEye = landmarks[33];
         const rightEye = landmarks[263];
@@ -209,7 +189,6 @@
         const sens = parseFloat(document.getElementById('headSens').value);
         const bodySens = parseFloat(document.getElementById('bodySens').value);
 
-        // 顔の角度計算 (Pitch / Yaw / Roll)
         const deltaX = rightEye.x - leftEye.x;
         const deltaY = rightEye.y - leftEye.y;
 
@@ -217,18 +196,15 @@
         const yaw = (0.5 - nose.x) * 1.8 * sens;
         const pitch = (nose.y - 0.5) * 1.5 * sens;
 
-        // 頭部ボーンの回転連動
         if (headBone) {
             headBone.rotation.set(-pitch, -yaw, -roll);
         }
 
-        // 胴体ボーンの追従（少し遅れて揺れる）
         if (chestBone) {
             chestBone.rotation.set(-pitch * bodySens, -yaw * bodySens, -roll * bodySens);
         }
     });
 
-    // 4. Webカメラ起動
     startCamBtn.onclick = async () => {
         if (isTracking) return;
         statusBadge.innerText = "⏳ Webカメラを起動しています...";
@@ -250,7 +226,6 @@
         }
     };
 
-    // 感度スライダー
     document.getElementById('headSens').oninput = (e) => document.getElementById('headSensVal').innerText = e.target.value;
     document.getElementById('bodySens').oninput = (e) => document.getElementById('bodySensVal').innerText = e.target.value;
 
