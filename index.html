@@ -2,10 +2,12 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu 3D Studio | Fixed Layering Engine</title>
+    <title>YuJitsu Studio | WebCam Vtuber Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- MediaPipe Face Mesh -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; overflow: hidden; }
         .panel { background: #161b22; border: 1px solid #30363d; border-radius: 0.5rem; }
@@ -18,28 +20,21 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Layer Fixed Edition</span></h1>
-            <p class="text-xs text-gray-400">即時3D化・マルチモデル・.yj3d保存/復元対応スタジオ</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Vtuber Mode</span></h1>
+            <p class="text-xs text-gray-400">画像1枚で即VTuber！Webカメラトラッキング対応</p>
         </div>
         <div class="flex items-center gap-2">
+            <!-- 背景色切り替え -->
             <span class="text-xs text-gray-400">背景:</span>
             <button id="bgDark" class="bg-btn bg-[#0d1117] text-white">Dark</button>
             <button id="bgGreen" class="bg-btn bg-[#00ff00] text-black">GB (緑)</button>
             <button id="bgRed" class="bg-btn bg-[#ff0000] text-white">RB (赤)</button>
             <button id="bgBlue" class="bg-btn bg-[#0000ff] text-white">BB (青)</button>
             
-            <div class="h-4 w-[1px] bg-[#30363d] mx-1"></div>
+            <div class="h-4 w-[1px] bg-[#30363d] mx-2"></div>
 
-            <label class="bg-[#21262d] hover:bg-[#30363d] text-white text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] cursor-pointer transition">
-                📂 .yj3d 開く
-                <input type="file" id="importYj3dInput" accept=".yj3d,application/json" class="hidden">
-            </label>
-            <button id="exportYj3dBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition disabled:opacity-50" disabled>
-                💾 .yj3d 保存
-            </button>
-
-            <button id="clearAllBtn" class="bg-red-800 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-bold transition ml-2">
-                🧹 全消去
+            <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-1.5 rounded font-bold transition">
+                📹 Webカメラトラッキング開始
             </button>
         </div>
     </header>
@@ -48,367 +43,219 @@
     <div class="flex-1 flex gap-4 min-h-0">
         
         <!-- 左パネル -->
-        <div class="w-80 panel p-4 flex flex-col gap-4 overflow-y-auto flex-none">
+        <div class="w-72 panel p-4 flex flex-col gap-4 overflow-y-auto flex-none">
             
             <div class="border-b border-[#30363d] pb-3 space-y-2">
-                <h2 class="text-sm font-bold text-[#79c0ff]">➕ 立ち絵を追加（即時3D化）</h2>
+                <h2 class="text-sm font-bold text-[#79c0ff]">🖼️ VTuber立ち絵設定</h2>
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
                 <p class="text-[10px] text-gray-400">※画像を選ぶと即座に3D表示されます</p>
             </div>
 
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs mb-1 text-[#79c0ff] font-bold">📦 操作オブジェクト選択</label>
-                    <select id="modelSelect" class="input-ui text-xs">
-                        <option value="">モデルがありません</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs mb-1 text-[#79c0ff] font-bold">🦴 操作パーツ（関節）選択</label>
-                    <select id="boneSelect" class="input-ui text-xs">
-                        <option value="">パーツを選択してください</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- 回転スライダー -->
+            <!-- トラッキング状態感度 -->
             <div class="space-y-3 bg-[#010409] p-3 rounded border border-[#30363d]">
-                <div class="text-xs font-bold text-gray-300">関節角度 (deg)</div>
+                <div class="text-xs font-bold text-gray-300">⚙️ トラッキング連動設定</div>
                 <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>Z回転 (平面曲げ)</span><span id="rotZVal">0°</span></div>
-                    <input type="range" id="rotZ" class="w-full" min="-180" max="180" value="0">
+                    <div class="flex justify-between text-[10px] text-gray-400"><span>頭の回転感度</span><span id="headSensVal">1.2</span></div>
+                    <input type="range" id="headSens" class="w-full" min="0.5" max="2.5" step="0.1" value="1.2">
                 </div>
                 <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>X回転 (前後傾き)</span><span id="rotXVal">0°</span></div>
-                    <input type="range" id="rotX" class="w-full" min="-60" max="60" value="0">
-                </div>
-                <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>Y回転 (左右振り)</span><span id="rotYVal">0°</span></div>
-                    <input type="range" id="rotY" class="w-full" min="-60" max="60" value="0">
+                    <div class="flex justify-between text-[10px] text-gray-400"><span>胴体の連動率</span><span id="bodySensVal">0.3</span></div>
+                    <input type="range" id="bodySens" class="w-full" min="0" max="0.8" step="0.05" value="0.3">
                 </div>
             </div>
 
-            <div class="mt-auto space-y-2 pt-2 border-t border-[#30363d]">
-                <button id="capturePngBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2 rounded font-bold w-full transition">
-                    📷 クロマキー画像出力 (PNG)
-                </button>
+            <div class="mt-auto text-[11px] text-gray-400 bg-[#010409] p-3 rounded border border-[#30363d] space-y-1">
+                <p class="font-bold text-[#58a6ff]">💡 使い方</p>
+                <p>1. 立ち絵画像を選択</p>
+                <p>2. 上の「Webカメラトラッキング開始」を押す</p>
+                <p>3. カメラに向かって頭を動かすと連動！</p>
             </div>
         </div>
 
         <!-- 右：3Dビューポート -->
         <div class="flex-1 panel relative overflow-hidden flex flex-col">
             <div id="canvasContainer" class="w-full flex-1"></div>
+            
+            <!-- カメラ（隠し） -->
+            <video id="webcam" class="hidden" autoplay playsinline></video>
+            
             <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]">
-                立ち絵画像を選択またはドロップしてください
+                立ち絵画像を選択してください
             </div>
         </div>
 
     </div>
 
-    <!-- 下部：タイムライン -->
-    <div class="panel p-3 flex flex-col gap-2 flex-none">
-        <div class="flex items-center gap-3">
-            <button id="playBtn" class="bg-[#21262d] hover:bg-[#30363d] text-white text-xs px-4 py-1.5 rounded font-bold border border-[#30363d]">
-                ▶ 再生
-            </button>
-            <span id="timeDisplay" class="text-xs font-mono text-[#58a6ff]">0.00s / 5.00s</span>
-            <input type="range" id="timelineSlider" class="flex-1" min="0" max="5" step="0.033" value="0">
-        </div>
-    </div>
-
 <script>
+    // 1. Three.js セットアップ
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1117);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 1.2, 4.0);
+    // 下半身を画面外にするため、カメラの位置を上半身中心（Y=1.4）にセット
+    camera.position.set(0, 1.4, 2.5);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
-
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 1.0, 0);
-    controls.update();
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.5));
     const gridHelper = new THREE.GridHelper(10, 10, 0x58a6ff, 0x30363d);
     scene.add(gridHelper);
 
-    let modelsList = [];
-    let activeModelIndex = -1;
+    let characterGroup = null;
+    let headBone = null;
+    let chestBone = null;
 
     const imageInput = document.getElementById('imageInput');
-    const modelSelect = document.getElementById('modelSelect');
-    const boneSelect = document.getElementById('boneSelect');
     const statusBadge = document.getElementById('statusBadge');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const exportYj3dBtn = document.getElementById('exportYj3dBtn');
-    const importYj3dInput = document.getElementById('importYj3dInput');
+    const webcamElement = document.getElementById('webcam');
+    const startCamBtn = document.getElementById('startCamBtn');
 
+    // 背景切り替え
     document.getElementById('bgDark').onclick = () => { scene.background = new THREE.Color(0x0d1117); gridHelper.visible = true; };
     document.getElementById('bgGreen').onclick = () => { scene.background = new THREE.Color(0x00ff00); gridHelper.visible = false; };
     document.getElementById('bgRed').onclick = () => { scene.background = new THREE.Color(0xff0000); gridHelper.visible = false; };
     document.getElementById('bgBlue').onclick = () => { scene.background = new THREE.Color(0x0000ff); gridHelper.visible = false; };
 
+    // 2. 画像即時3D化
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        statusBadge.innerText = "⏳ 画像を3Dモデル化中...";
-
         const reader = new FileReader();
         reader.onload = (ev) => {
             const img = new Image();
-            img.onload = () => {
-                try {
-                    create3DModel(img, file.name);
-                } catch (err) {
-                    statusBadge.innerText = "❌ エラー: " + err.message;
-                }
-            };
+            img.onload = () => buildVtuberModel(img);
             img.src = ev.target.result;
         };
         reader.readAsDataURL(file);
     });
 
-    function create3DModel(imgElement, fileName) {
-        const imgW = imgElement.width;
-        const imgH = imgElement.height;
+    function buildVtuberModel(imgElement) {
+        if (characterGroup) scene.remove(characterGroup);
 
-        const aspect = imgH / imgW;
+        characterGroup = new THREE.Group();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = imgElement.width;
+        canvas.height = imgElement.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgElement, 0, 0);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+
+        const aspect = imgElement.height / imgElement.width;
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // zOffsetで前後（重ね順）のチークチル障害・透過透けを物理排除
-        const partsDefinition = [
-            { id: "root", name: "腰・全体 (Root)", parent: null, isPivotOnly: true, pivot: [0, 0, 0] },
-            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.2, imgH * 0.35, imgW * 0.6, imgH * 0.45], pivot: [0, 0.6, 0.005], bounds: [totalW * 0.6, totalH * 0.45], zOffset: 0.001 },
-            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.1, 0, imgW * 0.8, imgH * 0.45], pivot: [0, 0.65, 0.01], bounds: [totalW * 0.8, totalH * 0.45], zOffset: 0.005 },
-            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.6, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [totalW * 0.25, 0.1, 0.008], bounds: [totalW * 0.35, totalH * 0.35], zOffset: 0.002 },
-            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [-totalW * 0.25, 0.1, 0.008], bounds: [totalW * 0.35, totalH * 0.35], zOffset: 0.002 }
-        ];
+        // 胴体 (Chest) ボーン
+        chestBone = new THREE.Group();
+        chestBone.position.set(0, 1.0, 0);
 
-        const modelGroup = new THREE.Group();
-        modelGroup.position.set(modelsList.length * 1.2, 0, 0);
+        const chestGeo = new THREE.PlaneGeometry(totalW, totalH * 0.6);
+        const chestMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+        const chestMesh = new THREE.Mesh(chestGeo, chestMat);
+        chestMesh.position.set(0, 0, 0);
+        chestBone.add(chestMesh);
 
-        const bonesMap = {};
-        const createdGroups = {};
+        // 頭部 (Head) ボーン（胴体に接続）
+        headBone = new THREE.Group();
+        headBone.position.set(0, totalH * 0.35, 0.01);
 
-        partsDefinition.forEach(p => {
-            const boneGroup = new THREE.Group();
-            boneGroup.position.set(...p.pivot);
+        const headGeo = new THREE.PlaneGeometry(totalW, totalH * 0.5);
+        const headMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+        const headMesh = new THREE.Mesh(headGeo, headMat);
+        headMesh.position.set(0, 0.2, 0);
+        headBone.add(headMesh);
 
-            const jointMark = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), new THREE.MeshBasicMaterial({ color: 0x58a6ff }));
-            jointMark.position.z = 0.02;
-            boneGroup.add(jointMark);
+        chestBone.add(headBone);
+        characterGroup.add(chestBone);
+        scene.add(characterGroup);
 
-            if (!p.isPivotOnly) {
-                const cropCanvas = document.createElement('canvas');
-                cropCanvas.width = p.crop[2];
-                cropCanvas.height = p.crop[3];
-                const ctx = cropCanvas.getContext('2d');
-                ctx.drawImage(imgElement, p.crop[0], p.crop[1], p.crop[2], p.crop[3], 0, 0, p.crop[2], p.crop[3]);
-
-                const texture = new THREE.CanvasTexture(cropCanvas);
-                texture.needsUpdate = true;
-
-                const pW = p.bounds[0];
-                const pH = p.bounds[1];
-                const geo = new THREE.PlaneGeometry(pW, pH);
-
-                // zWriteとdepthTest、明確なdepthWrite制御で透過透けを制御
-                const mat = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    alphaTest: 0.05,
-                    depthWrite: true,
-                    side: THREE.DoubleSide
-                });
-
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.z = p.zOffset || 0;
-                boneGroup.add(mesh);
-            }
-
-            createdGroups[p.id] = boneGroup;
-            bonesMap[p.id] = { group: boneGroup, data: p };
-        });
-
-        partsDefinition.forEach(p => {
-            const currentGroup = createdGroups[p.id];
-            if (p.parent && createdGroups[p.parent]) {
-                createdGroups[p.parent].add(currentGroup);
-            } else {
-                modelGroup.add(currentGroup);
-            }
-        });
-
-        scene.add(modelGroup);
-
-        const modelObj = {
-            id: Date.now(),
-            name: fileName,
-            group: modelGroup,
-            bonesMap: bonesMap,
-            partsDefinition: partsDefinition
-        };
-
-        modelsList.push(modelObj);
-        updateModelDropdown();
-        selectActiveModel(modelsList.length - 1);
-
-        statusBadge.innerText = `✨ 「${fileName}」を3D化しました！`;
+        statusBadge.innerText = "✨ VTuberモデル作成完了！カメラを起動してください";
     }
 
-    function updateModelDropdown() {
-        modelSelect.innerHTML = "";
-        modelsList.forEach((m, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.innerText = `${idx + 1}. ${m.name}`;
-            modelSelect.appendChild(opt);
-        });
-    }
+    // 3. MediaPipe Face Mesh トラッキング
+    let isTracking = false;
+    const faceMesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
 
-    function selectActiveModel(idx) {
-        if (idx < 0 || idx >= modelsList.length) {
-            activeModelIndex = -1;
-            boneSelect.innerHTML = '<option value="">パーツを選択してください</option>';
-            exportYj3dBtn.disabled = true;
+    faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+
+    faceMesh.onResults((results) => {
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+            statusBadge.innerText = "🔍 顔を探しています...";
             return;
         }
 
-        activeModelIndex = idx;
-        modelSelect.value = idx;
+        statusBadge.innerText = "🔴 VTuberトラッキング中！";
+        const landmarks = results.multiFaceLandmarks[0];
 
-        boneSelect.innerHTML = '<option value="">パーツを選択してください</option>';
-        modelsList[idx].partsDefinition.forEach(p => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.innerText = p.name;
-            boneSelect.appendChild(opt);
-        });
-        exportYj3dBtn.disabled = false;
-    }
+        // ランドマーク（1: 鼻先, 33: 左目外角, 263: 右目外角, 10: 額, 152: 顎）
+        const nose = landmarks[1];
+        const leftEye = landmarks[33];
+        const rightEye = landmarks[263];
 
-    modelSelect.onchange = (e) => selectActiveModel(parseInt(e.target.value));
+        const sens = parseFloat(document.getElementById('headSens').value);
+        const bodySens = parseFloat(document.getElementById('bodySens').value);
 
-    clearAllBtn.onclick = () => {
-        modelsList.forEach(m => scene.remove(m.group));
-        modelsList = [];
-        selectActiveModel(-1);
-        imageInput.value = "";
-        statusBadge.innerText = "🧹 すべての3Dモデルを消去しました";
+        // 顔の角度計算 (Pitch / Yaw / Roll)
+        const deltaX = rightEye.x - leftEye.x;
+        const deltaY = rightEye.y - leftEye.y;
+
+        const roll = Math.atan2(deltaY, deltaX) * sens;
+        const yaw = (0.5 - nose.x) * 1.8 * sens;
+        const pitch = (nose.y - 0.5) * 1.5 * sens;
+
+        // 頭部ボーンの回転連動
+        if (headBone) {
+            headBone.rotation.set(-pitch, -yaw, -roll);
+        }
+
+        // 胴体ボーンの追従（少し遅れて揺れる）
+        if (chestBone) {
+            chestBone.rotation.set(-pitch * bodySens, -yaw * bodySens, -roll * bodySens);
+        }
+    });
+
+    // 4. Webカメラ起動
+    startCamBtn.onclick = async () => {
+        if (isTracking) return;
+        statusBadge.innerText = "⏳ Webカメラを起動しています...";
+
+        try {
+            const cameraUtils = new Camera(webcamElement, {
+                onFrame: async () => {
+                    await faceMesh.send({ image: webcamElement });
+                },
+                width: 640,
+                height: 480
+            });
+            await cameraUtils.start();
+            isTracking = true;
+            startCamBtn.className = "bg-gray-600 text-white text-xs px-4 py-1.5 rounded font-bold cursor-not-allowed";
+            startCamBtn.innerText = "🟢 トラッキング動作中";
+        } catch (err) {
+            statusBadge.innerText = "❌ カメラ起動エラー: " + err.message;
+        }
     };
 
-    exportYj3dBtn.onclick = () => {
-        if (activeModelIndex < 0 || !modelsList[activeModelIndex]) return;
-        const currentModel = modelsList[activeModelIndex];
-        const poseData = {};
-
-        Object.keys(currentModel.bonesMap).forEach(bId => {
-            const rot = currentModel.bonesMap[bId].group.rotation;
-            poseData[bId] = {
-                rotX: Math.round(THREE.MathUtils.radToDeg(rot.x)),
-                rotY: Math.round(THREE.MathUtils.radToDeg(rot.y)),
-                rotZ: Math.round(THREE.MathUtils.radToDeg(rot.z))
-            };
-        });
-
-        const blob = new Blob([JSON.stringify({ name: currentModel.name, pose: poseData }, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${currentModel.name}_pose.yj3d`;
-        a.click();
-    };
-
-    importYj3dInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const data = JSON.parse(ev.target.result);
-                if (activeModelIndex >= 0 && modelsList[activeModelIndex] && data.pose) {
-                    const currentModel = modelsList[activeModelIndex];
-                    Object.keys(data.pose).forEach(bId => {
-                        if (currentModel.bonesMap[bId]) {
-                            const p = data.pose[bId];
-                            currentModel.bonesMap[bId].group.rotation.set(
-                                THREE.MathUtils.degToRad(p.rotX),
-                                THREE.MathUtils.degToRad(p.rotY),
-                                THREE.MathUtils.degToRad(p.rotZ)
-                            );
-                        }
-                    });
-                    statusBadge.innerText = `📂 ポーズデータを適用しました！`;
-                }
-            } catch (err) {
-                alert("読み込み失敗");
-            }
-        };
-        reader.readAsText(file);
-    };
-
-    const rotX = document.getElementById('rotX');
-    const rotY = document.getElementById('rotY');
-    const rotZ = document.getElementById('rotZ');
-
-    function updateRotation() {
-        if (activeModelIndex < 0) return;
-        const boneId = boneSelect.value;
-        const currentModel = modelsList[activeModelIndex];
-        if (!boneId || !currentModel || !currentModel.bonesMap[boneId]) return;
-
-        const valX = parseFloat(rotX.value);
-        const valY = parseFloat(rotY.value);
-        const valZ = parseFloat(rotZ.value);
-
-        currentModel.bonesMap[boneId].group.rotation.set(
-            THREE.MathUtils.degToRad(valX),
-            THREE.MathUtils.degToRad(valY),
-            THREE.MathUtils.degToRad(valZ)
-        );
-
-        document.getElementById('rotXVal').innerText = valX + '°';
-        document.getElementById('rotYVal').innerText = valY + '°';
-        document.getElementById('rotZVal').innerText = valZ + '°';
-    }
-
-    [rotX, rotY, rotZ].forEach(el => el.oninput = updateRotation);
-
-    boneSelect.onchange = () => {
-        if (activeModelIndex < 0) return;
-        const boneId = boneSelect.value;
-        const currentModel = modelsList[activeModelIndex];
-        if (!boneId || !currentModel || !currentModel.bonesMap[boneId]) return;
-
-        const r = currentModel.bonesMap[boneId].group.rotation;
-        rotX.value = Math.round(THREE.MathUtils.radToDeg(r.x));
-        rotY.value = Math.round(THREE.MathUtils.radToDeg(r.y));
-        rotZ.value = Math.round(THREE.MathUtils.radToDeg(r.z));
-
-        document.getElementById('rotXVal').innerText = rotX.value + '°';
-        document.getElementById('rotYVal').innerText = rotY.value + '°';
-        document.getElementById('rotZVal').innerText = rotZ.value + '°';
-    };
-
-    document.getElementById('capturePngBtn').onclick = () => {
-        renderer.render(scene, camera);
-        const a = document.createElement('a');
-        a.href = renderer.domElement.toDataURL('image/png');
-        a.download = `YuJitsu3D_${Date.now()}.png`;
-        a.click();
-    };
+    // 感度スライダー
+    document.getElementById('headSens').oninput = (e) => document.getElementById('headSensVal').innerText = e.target.value;
+    document.getElementById('bodySens').oninput = (e) => document.getElementById('bodySensVal').innerText = e.target.value;
 
     function animate() {
         requestAnimationFrame(animate);
-        controls.update();
         renderer.render(scene, camera);
     }
     animate();
