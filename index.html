@@ -2,16 +2,20 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | Paint Mask Edition</title>
+    <title>YuJitsu Studio | Eraser & Full Tracking</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- MediaPipe Face Mesh -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         body { background-color: #0d1117; color: #c9d1d9; font-family: sans-serif; overflow: hidden; }
         .panel { background: #161b22; border: 1px solid #30363d; border-radius: 0.5rem; }
         .input-ui { background: #010409; border: 1px solid #30363d; color: #c9d1d9; border-radius: 0.375rem; padding: 0.25rem 0.5rem; width: 100%; }
-        .bg-btn { padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: bold; cursor: pointer; border: 1px solid #30363d; }
+        .btn-part { padding: 0.5rem 0.25rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: bold; border: 1px solid #30363d; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .btn-part.active { border-color: #58a6ff; ring: 2px; }
+        .btn-mode { font-size: 0.75rem; padding: 0.375rem 0.5rem; border-radius: 0.375rem; font-weight: bold; border: 1px solid #30363d; cursor: pointer; text-align: center; }
+        .btn-mode.active { border-color: #58a6ff; color: #ffffff; background-color: #21262d; }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col p-4 gap-4">
@@ -19,11 +23,11 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">Paint Mask Edition</span></h1>
-            <p class="text-xs text-gray-400">ペンで塗ってパーツ分離！完全フィットVTuberエンジン</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Eraser & Tracking Edition</span></h1>
+            <p class="text-xs text-gray-400">ペン・バケツ・消しゴム対応 ＆ 目・口フル連動VTuberエンジン</p>
         </div>
         <div class="flex items-center gap-2">
-            <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-1.5 rounded font-bold transition">
+            <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-2 rounded font-bold transition">
                 📹 Webカメラトラッキング開始
             </button>
         </div>
@@ -32,7 +36,7 @@
     <!-- メインエリア -->
     <div class="flex-1 flex gap-4 min-h-0">
         
-        <!-- 左：操作・ペイント設定 -->
+        <!-- 左：操作パネル -->
         <div class="w-80 panel p-4 flex flex-col gap-3 overflow-y-auto flex-none">
             
             <div class="space-y-1 border-b border-[#30363d] pb-3">
@@ -40,30 +44,44 @@
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
             </div>
 
-            <!-- ペイント塗り分けツール -->
+            <!-- ツール選択（ペン / バケツ / 消しゴム） -->
             <div class="space-y-2 border-b border-[#30363d] pb-3">
-                <label class="text-xs font-bold text-[#79c0ff]">2. 塗り分けパーツ選択</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="toolHead" class="bg-red-900/50 hover:bg-red-800 text-red-200 text-xs py-1.5 rounded border border-red-500 font-bold">🔴 頭部を塗る</button>
-                    <button id="toolBody" class="bg-blue-900/50 hover:bg-blue-800 text-blue-200 text-xs py-1.5 rounded border border-blue-500 font-bold">🔵 胴体を塗る</button>
+                <label class="text-xs font-bold text-[#79c0ff]">2. 描画ツール選択</label>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button id="modeBrush" class="btn-mode active">🖌️ ペン</button>
+                    <button id="modeFill" class="btn-mode">🪣 バケツ</button>
+                    <button id="modeEraser" class="btn-mode text-red-300">🧹 消しゴム</button>
                 </div>
-                <div class="flex items-center gap-2 pt-1">
-                    <span class="text-[10px] text-gray-400">ブラシ太さ:</span>
-                    <input type="range" id="brushSize" min="5" max="50" value="20" class="flex-1">
-                    <button id="clearPaintBtn" class="bg-gray-800 text-gray-300 text-[10px] px-2 py-1 rounded">リセット</button>
+                <div id="brushOption" class="flex items-center gap-2 pt-1">
+                    <span class="text-[10px] text-gray-400">太さ:</span>
+                    <input type="range" id="brushSize" min="2" max="60" value="20" class="flex-1">
                 </div>
             </div>
 
-            <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full">
-                ✨ 塗った通りに3Dモデル生成！
+            <!-- パーツ選択 -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3">
+                <label class="text-xs font-bold text-[#79c0ff]">3. 塗り分ける部位を選択</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="partHead" class="btn-part bg-red-900/40 text-red-300 border-red-500 active">🔴 頭部</button>
+                    <button id="partBody" class="btn-part bg-blue-900/40 text-blue-300 border-blue-500">🔵 胴体</button>
+                    <button id="partEyes" class="btn-part bg-yellow-900/40 text-yellow-300 border-yellow-500">🟡 目 (まばたき)</button>
+                    <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
+                </div>
+                <div class="flex justify-between items-center pt-1">
+                    <button id="clearPaintBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded">全消しリセット</button>
+                </div>
+            </div>
+
+            <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-3 rounded font-bold transition w-full shadow-lg">
+                ✨ 塗った部位で3D化 ＆ トラッキング準備！
             </button>
         </div>
 
-        <!-- 中央：ペイントキャンバス ＆ 右：3Dプレビュー -->
+        <!-- 中央：キャンバス & 右：3Dプレビュー -->
         <div class="flex-1 flex gap-4 min-h-0">
-            <!-- 2D塗り絵キャンバス -->
+            <!-- ペイントエリア -->
             <div class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
-                <div class="text-xs text-gray-400 absolute top-2 left-2">🎨 マスクペイント画面 (ドラッグで塗る)</div>
+                <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント (ペン / バケツ / 消しゴム)</div>
                 <div class="relative max-h-full max-w-full flex items-center justify-center overflow-hidden">
                     <canvas id="paintCanvas" class="max-h-[70vh] max-w-full border border-gray-700 cursor-crosshair"></canvas>
                 </div>
@@ -82,24 +100,58 @@
     </div>
 
 <script>
-    // 1. 2Dペイントキャンバス設定
+    // --- 1. ペイント＆消しゴム＆塗りつぶしエンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
 
-    let currentTool = 'head'; // 'head' または 'body'
+    let drawMode = 'brush'; // 'brush', 'fill', 'eraser'
+    let currentPart = 'head'; // 'head', 'body', 'eyes', 'mouth'
     let isDrawing = false;
     let brushSize = 20;
 
-    // マスクデータ用キャンバス (非表示)
-    const maskHeadCanvas = document.createElement('canvas');
-    const maskHeadCtx = maskHeadCanvas.getContext('2d');
-    const maskBodyCanvas = document.createElement('canvas');
-    const maskBodyCtx = maskBodyCanvas.getContext('2d');
+    const maskCanvases = {
+        head: document.createElement('canvas'),
+        body: document.createElement('canvas'),
+        eyes: document.createElement('canvas'),
+        mouth: document.createElement('canvas')
+    };
+    const maskCtxs = {
+        head: maskCanvases.head.getContext('2d'),
+        body: maskCanvases.body.getContext('2d'),
+        eyes: maskCanvases.eyes.getContext('2d'),
+        mouth: maskCanvases.mouth.getContext('2d')
+    };
 
-    document.getElementById('toolHead').onclick = () => currentTool = 'head';
-    document.getElementById('toolBody').onclick = () => currentTool = 'body';
-    document.getElementById('brushSize').oninput = (e) => brushSize = e.target.value;
+    const modeBtns = {
+        brush: document.getElementById('modeBrush'),
+        fill: document.getElementById('modeFill'),
+        eraser: document.getElementById('modeEraser')
+    };
+
+    Object.keys(modeBtns).forEach(m => {
+        modeBtns[m].onclick = () => {
+            drawMode = m;
+            Object.values(modeBtns).forEach(b => b.classList.remove('active'));
+            modeBtns[m].classList.add('active');
+        };
+    });
+
+    const partBtns = { 
+        head: document.getElementById('partHead'), 
+        body: document.getElementById('partBody'), 
+        eyes: document.getElementById('partEyes'),
+        mouth: document.getElementById('partMouth')
+    };
+    Object.keys(partBtns).forEach(part => {
+        partBtns[part].onclick = () => {
+            currentPart = part;
+            Object.values(partBtns).forEach(b => b.classList.remove('active', 'ring-2'));
+            partBtns[part].classList.add('active', 'ring-2');
+        };
+    });
+
+    document.getElementById('brushSize').oninput = (e) => brushSize = parseInt(e.target.value);
 
     document.getElementById('imageInput').onchange = (e) => {
         const file = e.target.files[0];
@@ -108,12 +160,15 @@
         reader.onload = (ev) => {
             loadedImage = new Image();
             loadedImage.onload = () => {
-                paintCanvas.width = loadedImage.width;
-                paintCanvas.height = loadedImage.height;
-                maskHeadCanvas.width = loadedImage.width;
-                maskHeadCanvas.height = loadedImage.height;
-                maskBodyCanvas.width = loadedImage.width;
-                maskBodyCanvas.height = loadedImage.height;
+                const w = loadedImage.width;
+                const h = loadedImage.height;
+
+                paintCanvas.width = w;
+                paintCanvas.height = h;
+                Object.keys(maskCanvases).forEach(k => {
+                    maskCanvases[k].width = w;
+                    maskCanvases[k].height = h;
+                });
 
                 resetPaintCanvas();
             };
@@ -126,45 +181,149 @@
         if (!loadedImage) return;
         paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
         paintCtx.drawImage(loadedImage, 0, 0);
-
-        maskHeadCtx.clearRect(0, 0, maskHeadCanvas.width, maskHeadCanvas.height);
-        maskBodyCtx.clearRect(0, 0, maskBodyCanvas.width, maskBodyCanvas.height);
+        Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
     document.getElementById('clearPaintBtn').onclick = resetPaintCanvas;
 
-    // お絵描きイベント
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
         const scaleX = paintCanvas.width / rect.width;
         const scaleY = paintCanvas.height / rect.height;
         return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
+            x: Math.floor((e.clientX - rect.left) * scaleX),
+            y: Math.floor((e.clientY - rect.top) * scaleY)
         };
     }
 
-    paintCanvas.onmousedown = (e) => { isDrawing = true; draw(e); };
-    paintCanvas.onmousemove = (e) => { if (isDrawing) draw(e); };
+    paintCanvas.onmousedown = (e) => {
+        if (!loadedImage) return;
+        const { x, y } = getCanvasCoords(e);
+        if (drawMode === 'fill') {
+            floodFill(x, y, false);
+        } else {
+            isDrawing = true;
+            drawBrush(x, y);
+        }
+    };
+    paintCanvas.onmousemove = (e) => {
+        if (isDrawing && (drawMode === 'brush' || drawMode === 'eraser')) {
+            const { x, y } = getCanvasCoords(e);
+            drawBrush(x, y);
+        }
+    };
     paintCanvas.onmouseup = () => isDrawing = false;
 
-    function draw(e) {
-        const { x, y } = getCanvasCoords(e);
+    // 🖌️ ペン ＆ 🧹 消しゴム 描画
+    function drawBrush(x, y) {
+        const maskCtx = maskCtxs[currentPart];
 
-        // 表示用キャンバスへの描画（半透明の赤・青）
-        paintCtx.fillStyle = currentTool === 'head' ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 100, 255, 0.5)';
-        paintCtx.beginPath();
-        paintCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-        paintCtx.fill();
+        if (drawMode === 'eraser') {
+            // 消しゴム処理（原画を元に戻して描画し、マスクをくり抜く）
+            maskCtx.save();
+            maskCtx.globalCompositeOperation = 'destination-out';
+            maskCtx.beginPath();
+            maskCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+            maskCtx.fill();
+            maskCtx.restore();
 
-        // マスク専用キャンバスへの描画（白塗り）
-        const targetCtx = currentTool === 'head' ? maskHeadCtx : maskBodyCtx;
-        targetCtx.fillStyle = '#ffffff';
-        targetCtx.beginPath();
-        targetCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-        targetCtx.fill();
+            redrawPaintCanvas();
+        } else {
+            // ペン塗り処理
+            const colorMap = { 
+                head: 'rgba(255, 0, 0, 0.5)', 
+                body: 'rgba(0, 100, 255, 0.5)', 
+                eyes: 'rgba(255, 230, 0, 0.6)',
+                mouth: 'rgba(0, 255, 100, 0.6)'
+            };
+            
+            paintCtx.fillStyle = colorMap[currentPart];
+            paintCtx.beginPath();
+            paintCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+            paintCtx.fill();
+
+            maskCtx.fillStyle = '#ffffff';
+            maskCtx.beginPath();
+            maskCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+            maskCtx.fill();
+        }
     }
 
-    // 2. 塗られたマスクから3Dモデルを安全作成
+    // マスク情報を反映してメインキャンバスを再描画（消しゴム用）
+    function redrawPaintCanvas() {
+        if (!loadedImage) return;
+        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+        paintCtx.drawImage(loadedImage, 0, 0);
+
+        const colorMap = { 
+            head: 'rgba(255, 0, 0, 0.5)', 
+            body: 'rgba(0, 100, 255, 0.5)', 
+            eyes: 'rgba(255, 230, 0, 0.6)',
+            mouth: 'rgba(0, 255, 100, 0.6)'
+        };
+
+        Object.keys(maskCanvases).forEach(part => {
+            const overlay = document.createElement('canvas');
+            overlay.width = paintCanvas.width;
+            overlay.height = paintCanvas.height;
+            const oCtx = overlay.getContext('2d');
+
+            oCtx.fillStyle = colorMap[part];
+            oCtx.fillRect(0, 0, overlay.width, overlay.height);
+            oCtx.globalCompositeOperation = 'destination-in';
+            oCtx.drawImage(maskCanvases[part], 0, 0);
+
+            paintCtx.drawImage(overlay, 0, 0);
+        });
+    }
+
+    // 🪣 塗りつぶし (Flood Fill)
+    function floodFill(startX, startY) {
+        const w = paintCanvas.width;
+        const h = paintCanvas.height;
+        const imgData = paintCtx.getImageData(0, 0, w, h);
+        const data = imgData.data;
+
+        const startIdx = (startY * w + startX) * 4;
+        const startR = data[startIdx], startG = data[startIdx + 1], startB = data[startIdx + 2], startA = data[startIdx + 3];
+
+        if (startA === 0) return;
+
+        const maskCtx = maskCtxs[currentPart];
+        const maskImgData = maskCtx.getImageData(0, 0, w, h);
+        const maskData = maskImgData.data;
+
+        const queue = [[startX, startY]];
+        const visited = new Uint8Array(w * h);
+        const colorTolerance = 35;
+
+        while (queue.length > 0) {
+            const [x, y] = queue.pop();
+            const idx = (y * w + x);
+            if (visited[idx]) continue;
+            visited[idx] = 1;
+
+            const pxIdx = idx * 4;
+            const r = data[pxIdx], g = data[pxIdx + 1], b = data[pxIdx + 2], a = data[pxIdx + 3];
+
+            if (Math.abs(r - startR) <= colorTolerance &&
+                Math.abs(g - startG) <= colorTolerance &&
+                Math.abs(b - startB) <= colorTolerance &&
+                a > 10) {
+
+                maskData[pxIdx] = 255; maskData[pxIdx + 1] = 255; maskData[pxIdx + 2] = 255; maskData[pxIdx + 3] = 255;
+
+                if (x > 0) queue.push([x - 1, y]);
+                if (x < w - 1) queue.push([x + 1, y]);
+                if (y > 0) queue.push([x, y - 1]);
+                if (y < h - 1) queue.push([x, y + 1]);
+            }
+        }
+
+        maskCtx.putImageData(maskImgData, 0, 0);
+        redrawPaintCanvas();
+    }
+
+    // --- 2. Three.js 3D構築 ---
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1117);
@@ -181,6 +340,8 @@
     let characterGroup = null;
     let headBone = null;
     let chestBone = null;
+    let eyesMesh = null;
+    let mouthMesh = null;
 
     document.getElementById('buildModelBtn').onclick = () => {
         if (!loadedImage) return;
@@ -192,37 +353,51 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // 胴体パーツ作成（Bodyマスクでくり抜き）
-        const bodyTextureCanvas = extractMaskedTexture(loadedImage, maskBodyCanvas);
-        const bodyTexture = new THREE.CanvasTexture(bodyTextureCanvas);
-
+        // 1. 胴体
+        const bodyCanvas = extractMaskedTexture(loadedImage, maskCanvases.body);
         chestBone = new THREE.Group();
         chestBone.position.set(0, 0.5, 0);
         const bodyMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: bodyTexture, transparent: true, side: THREE.DoubleSide })
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bodyCanvas), transparent: true, side: THREE.DoubleSide })
         );
         bodyMesh.position.set(0, totalH / 2 - 0.5, 0);
         chestBone.add(bodyMesh);
 
-        // 頭部パーツ作成（Headマスクでくり抜き）
-        const headTextureCanvas = extractMaskedTexture(loadedImage, maskHeadCanvas);
-        const headTexture = new THREE.CanvasTexture(headTextureCanvas);
-
+        // 2. 頭部
+        const headCanvas = extractMaskedTexture(loadedImage, maskCanvases.head);
         headBone = new THREE.Group();
-        headBone.position.set(0, totalH * 0.5, 0.01); // 首の位置
+        headBone.position.set(0, totalH * 0.5, 0.01);
         const headMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: headTexture, transparent: true, side: THREE.DoubleSide })
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(headCanvas), transparent: true, side: THREE.DoubleSide })
         );
         headMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0);
         headBone.add(headMesh);
+
+        // 3. 目
+        const eyesCanvas = extractMaskedTexture(loadedImage, maskCanvases.eyes);
+        eyesMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(totalW, totalH),
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(eyesCanvas), transparent: true, side: THREE.DoubleSide })
+        );
+        eyesMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0.01);
+        headBone.add(eyesMesh);
+
+        // 4. 口
+        const mouthCanvas = extractMaskedTexture(loadedImage, maskCanvases.mouth);
+        mouthMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(totalW, totalH),
+            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(mouthCanvas), transparent: true, side: THREE.DoubleSide })
+        );
+        mouthMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0.02);
+        headBone.add(mouthMesh);
 
         chestBone.add(headBone);
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ マスク抽出完了！カメラを起動して動かせます！";
+        document.getElementById('statusBadge').innerText = "✨ 消しゴム・ペイントでの3Dモデル生成完了！";
     };
 
     function extractMaskedTexture(sourceImg, maskCanvas) {
@@ -230,17 +405,13 @@
         outCanvas.width = sourceImg.width;
         outCanvas.height = sourceImg.height;
         const ctx = outCanvas.getContext('2d');
-
-        // 原画を描画
         ctx.drawImage(sourceImg, 0, 0);
-        // マスク領域以外をくり抜く（destination-in）
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(maskCanvas, 0, 0);
-
         return outCanvas;
     }
 
-    // 3. トラッキング設定
+    // --- 3. Webカメラ トラッキング ---
     let isTracking = false;
     const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
@@ -263,6 +434,20 @@
 
         if (headBone) headBone.rotation.set(-pitch, -yaw, -roll);
         if (chestBone) chestBone.rotation.set(-pitch * 0.3, -yaw * 0.3, -roll * 0.3);
+
+        const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
+        const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
+        const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
+
+        if (eyesMesh) {
+            eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+        }
+
+        const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
+        if (mouthMesh) {
+            const mouthScale = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+            mouthMesh.scale.y = mouthScale;
+        }
     });
 
     document.getElementById('startCamBtn').onclick = async () => {
@@ -273,6 +458,7 @@
         });
         await cameraUtils.start();
         isTracking = true;
+        document.getElementById('startCamBtn').innerText = "🟢 トラッキング動作中";
     };
 
     function animate() {
