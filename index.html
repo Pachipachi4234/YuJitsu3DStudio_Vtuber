@@ -209,6 +209,7 @@
 
         const bonesMap = {};
 
+        // 1. 全パーツのグループを先にかつ確実に生成
         partsDefinition.forEach(p => {
             const boneGroup = new THREE.Group();
             boneGroup.position.set(...p.pivot);
@@ -238,8 +239,9 @@
             bonesMap[p.id] = { group: boneGroup, data: p };
         });
 
+        // 2. 親パーツが存在することを安全に確認してから結合（結合エラー回避）
         partsDefinition.forEach(p => {
-            if (p.parent && bonesMap[p.parent]) {
+            if (p.parent && bonesMap[p.parent] && bonesMap[p.parent].group) {
                 bonesMap[p.parent].group.add(bonesMap[p].group);
             } else {
                 modelGroup.add(bonesMap[p].group);
