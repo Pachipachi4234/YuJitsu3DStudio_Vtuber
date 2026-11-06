@@ -208,8 +208,9 @@
         modelGroup.position.set(modelsList.length * 1.2, 0, 0);
 
         const bonesMap = {};
+        const createdGroups = {};
 
-        // 1. 全パーツのグループを先にかつ確実に生成
+        // 1. 全パーツのグループを先に独立して作成
         partsDefinition.forEach(p => {
             const boneGroup = new THREE.Group();
             boneGroup.position.set(...p.pivot);
@@ -236,15 +237,17 @@
             const jointMark = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0x58a6ff }));
             boneGroup.add(jointMark);
 
+            createdGroups[p.id] = boneGroup;
             bonesMap[p.id] = { group: boneGroup, data: p };
         });
 
-        // 2. 親パーツが存在することを安全に確認してから結合（結合エラー回避）
+        // 2. 確実に安全な親子接続ロジック
         partsDefinition.forEach(p => {
-            if (p.parent && bonesMap[p.parent] && bonesMap[p.parent].group) {
-                bonesMap[p.parent].group.add(bonesMap[p].group);
+            const currentGroup = createdGroups[p.id];
+            if (p.parent && createdGroups[p.parent]) {
+                createdGroups[p.parent].add(currentGroup);
             } else {
-                modelGroup.add(bonesMap[p].group);
+                modelGroup.add(currentGroup);
             }
         });
 
