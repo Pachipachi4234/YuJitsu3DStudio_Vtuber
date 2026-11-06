@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | Eraser & Full Tracking</title>
+    <title>YuJitsu Studio | Ctrl+Z Undo & Full VTuber Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -23,8 +23,8 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Eraser & Tracking Edition</span></h1>
-            <p class="text-xs text-gray-400">ペン・バケツ・消しゴム対応 ＆ 目・口フル連動VTuberエンジン</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Undo(Ctrl+Z) Supported</span></h1>
+            <p class="text-xs text-gray-400">ペン・バケツ・消しゴム ＆ Ctrl+Z対応 フル機能VTuberスタジオ</p>
         </div>
         <div class="flex items-center gap-2">
             <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-2 rounded font-bold transition">
@@ -44,7 +44,7 @@
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
             </div>
 
-            <!-- ツール選択（ペン / バケツ / 消しゴム） -->
+            <!-- ツール選択 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3">
                 <label class="text-xs font-bold text-[#79c0ff]">2. 描画ツール選択</label>
                 <div class="grid grid-cols-3 gap-1.5">
@@ -67,8 +67,14 @@
                     <button id="partEyes" class="btn-part bg-yellow-900/40 text-yellow-300 border-yellow-500">🟡 目 (まばたき)</button>
                     <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
                 </div>
+
+                <!-- Ctrl+Z Undo / Redo ボタン -->
+                <div class="flex gap-2 pt-2">
+                    <button id="undoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↩️ 戻す (Ctrl+Z)</button>
+                    <button id="redoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↪️ やり直し</button>
+                </div>
                 <div class="flex justify-between items-center pt-1">
-                    <button id="clearPaintBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded">全消しリセット</button>
+                    <button id="clearPaintBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded w-full">全消しリセット</button>
                 </div>
             </div>
 
@@ -81,7 +87,7 @@
         <div class="flex-1 flex gap-4 min-h-0">
             <!-- ペイントエリア -->
             <div class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
-                <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント (ペン / バケツ / 消しゴム)</div>
+                <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント (Ctrl+Zで操作を取り消せます)</div>
                 <div class="relative max-h-full max-w-full flex items-center justify-center overflow-hidden">
                     <canvas id="paintCanvas" class="max-h-[70vh] max-w-full border border-gray-700 cursor-crosshair"></canvas>
                 </div>
@@ -100,7 +106,7 @@
     </div>
 
 <script>
-    // --- 1. ペイント＆消しゴム＆塗りつぶしエンジン ---
+    // --- 1. ペイント ＆ Ctrl+Z (Undo / Redo) エンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
@@ -122,6 +128,85 @@
         eyes: maskCanvases.eyes.getContext('2d'),
         mouth: maskCanvases.mouth.getContext('2d')
     };
+
+    // Undo / Redo スタック履歴
+    const undoStack = [];
+    const redoStack = [];
+    const maxHistory = 20;
+
+    function saveState() {
+        const state = {};
+        Object.keys(maskCanvases).forEach(part => {
+            const temp = document.createElement('canvas');
+            temp.width = maskCanvases[part].width;
+            temp.height = maskCanvases[part].height;
+            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
+            state[part] = temp;
+        });
+
+        undoStack.push(state);
+        if (undoStack.length > maxHistory) undoStack.shift();
+        redoStack.length = 0; // 新しい操作が入ったらRedo履歴をクリア
+    }
+
+    function undo() {
+        if (undoStack.length === 0) return;
+        const currentState = {};
+        Object.keys(maskCanvases).forEach(part => {
+            const temp = document.createElement('canvas');
+            temp.width = maskCanvases[part].width;
+            temp.height = maskCanvases[part].height;
+            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
+            currentState[part] = temp;
+        });
+        redoStack.push(currentState);
+
+        const previousState = undoStack.pop();
+        restoreState(previousState);
+    }
+
+    function redo() {
+        if (redoStack.length === 0) return;
+        const currentState = {};
+        Object.keys(maskCanvases).forEach(part => {
+            const temp = document.createElement('canvas');
+            temp.width = maskCanvases[part].width;
+            temp.height = maskCanvases[part].height;
+            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
+            currentState[part] = temp;
+        });
+        undoStack.push(currentState);
+
+        const nextState = redoStack.pop();
+        restoreState(nextState);
+    }
+
+    function restoreState(state) {
+        Object.keys(state).forEach(part => {
+            const ctx = maskCtxs[part];
+            ctx.clearRect(0, 0, maskCanvases[part].width, maskCanvases[part].height);
+            ctx.drawImage(state[part], 0, 0);
+        });
+        redrawPaintCanvas();
+    }
+
+    // Ctrl+Z / Ctrl+Y のキーボードショートカット対応
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            if (e.shiftKey) {
+                redo();
+            } else {
+                undo();
+            }
+            e.preventDefault();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+            redo();
+            e.preventDefault();
+        }
+    });
+
+    document.getElementById('undoBtn').onclick = undo;
+    document.getElementById('redoBtn').onclick = redo;
 
     const modeBtns = {
         brush: document.getElementById('modeBrush'),
@@ -170,6 +255,8 @@
                     maskCanvases[k].height = h;
                 });
 
+                undoStack.length = 0;
+                redoStack.length = 0;
                 resetPaintCanvas();
             };
             loadedImage.src = ev.target.result;
@@ -183,7 +270,10 @@
         paintCtx.drawImage(loadedImage, 0, 0);
         Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
-    document.getElementById('clearPaintBtn').onclick = resetPaintCanvas;
+    document.getElementById('clearPaintBtn').onclick = () => {
+        saveState();
+        resetPaintCanvas();
+    };
 
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
@@ -197,9 +287,10 @@
 
     paintCanvas.onmousedown = (e) => {
         if (!loadedImage) return;
+        saveState(); // 描画開始前に現在の状態を保存
         const { x, y } = getCanvasCoords(e);
         if (drawMode === 'fill') {
-            floodFill(x, y, false);
+            floodFill(x, y);
         } else {
             isDrawing = true;
             drawBrush(x, y);
@@ -213,12 +304,10 @@
     };
     paintCanvas.onmouseup = () => isDrawing = false;
 
-    // 🖌️ ペン ＆ 🧹 消しゴム 描画
     function drawBrush(x, y) {
         const maskCtx = maskCtxs[currentPart];
 
         if (drawMode === 'eraser') {
-            // 消しゴム処理（原画を元に戻して描画し、マスクをくり抜く）
             maskCtx.save();
             maskCtx.globalCompositeOperation = 'destination-out';
             maskCtx.beginPath();
@@ -228,7 +317,6 @@
 
             redrawPaintCanvas();
         } else {
-            // ペン塗り処理
             const colorMap = { 
                 head: 'rgba(255, 0, 0, 0.5)', 
                 body: 'rgba(0, 100, 255, 0.5)', 
@@ -248,7 +336,6 @@
         }
     }
 
-    // マスク情報を反映してメインキャンバスを再描画（消しゴム用）
     function redrawPaintCanvas() {
         if (!loadedImage) return;
         paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
@@ -276,7 +363,6 @@
         });
     }
 
-    // 🪣 塗りつぶし (Flood Fill)
     function floodFill(startX, startY) {
         const w = paintCanvas.width;
         const h = paintCanvas.height;
@@ -353,7 +439,7 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // 1. 胴体
+        // 胴体
         const bodyCanvas = extractMaskedTexture(loadedImage, maskCanvases.body);
         chestBone = new THREE.Group();
         chestBone.position.set(0, 0.5, 0);
@@ -364,7 +450,7 @@
         bodyMesh.position.set(0, totalH / 2 - 0.5, 0);
         chestBone.add(bodyMesh);
 
-        // 2. 頭部
+        // 頭部
         const headCanvas = extractMaskedTexture(loadedImage, maskCanvases.head);
         headBone = new THREE.Group();
         headBone.position.set(0, totalH * 0.5, 0.01);
@@ -375,7 +461,7 @@
         headMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0);
         headBone.add(headMesh);
 
-        // 3. 目
+        // 目
         const eyesCanvas = extractMaskedTexture(loadedImage, maskCanvases.eyes);
         eyesMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(totalW, totalH),
@@ -384,7 +470,7 @@
         eyesMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0.01);
         headBone.add(eyesMesh);
 
-        // 4. 口
+        // 口
         const mouthCanvas = extractMaskedTexture(loadedImage, maskCanvases.mouth);
         mouthMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(totalW, totalH),
@@ -397,7 +483,7 @@
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ 消しゴム・ペイントでの3Dモデル生成完了！";
+        document.getElementById('statusBadge').innerText = "✨ Undo機能付き 3Dモデル化が完了しました！";
     };
 
     function extractMaskedTexture(sourceImg, maskCanvas) {
