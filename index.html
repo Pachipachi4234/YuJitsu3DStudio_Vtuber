@@ -2,10 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | WebCam Vtuber Edition</title>
+    <title>YuJitsu Studio | Paint Mask Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- MediaPipe Face Mesh -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <style>
@@ -20,18 +19,10 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Vtuber Mode</span></h1>
-            <p class="text-xs text-gray-400">画像1枚で即VTuber！Webカメラトラッキング対応</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">Paint Mask Edition</span></h1>
+            <p class="text-xs text-gray-400">ペンで塗ってパーツ分離！完全フィットVTuberエンジン</p>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-400">背景:</span>
-            <button id="bgDark" class="bg-btn bg-[#0d1117] text-white">Dark</button>
-            <button id="bgGreen" class="bg-btn bg-[#00ff00] text-black">GB (緑)</button>
-            <button id="bgRed" class="bg-btn bg-[#ff0000] text-white">RB (赤)</button>
-            <button id="bgBlue" class="bg-btn bg-[#0000ff] text-white">BB (青)</button>
-            
-            <div class="h-4 w-[1px] bg-[#30363d] mx-2"></div>
-
             <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-1.5 rounded font-bold transition">
                 📹 Webカメラトラッキング開始
             </button>
@@ -40,206 +31,255 @@
 
     <!-- メインエリア -->
     <div class="flex-1 flex gap-4 min-h-0">
-        <!-- 左パネル -->
-        <div class="w-72 panel p-4 flex flex-col gap-4 overflow-y-auto flex-none">
-            <div class="border-b border-[#30363d] pb-3 space-y-2">
-                <h2 class="text-sm font-bold text-[#79c0ff]">🖼️ VTuber立ち絵設定</h2>
+        
+        <!-- 左：操作・ペイント設定 -->
+        <div class="w-80 panel p-4 flex flex-col gap-3 overflow-y-auto flex-none">
+            
+            <div class="space-y-1 border-b border-[#30363d] pb-3">
+                <label class="text-xs font-bold text-[#79c0ff]">1. 立ち絵読み込み</label>
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
-                <p class="text-[10px] text-gray-400">※画像を選ぶと即座に3D表示されます</p>
             </div>
 
-            <!-- トラッキング設定 -->
-            <div class="space-y-3 bg-[#010409] p-3 rounded border border-[#30363d]">
-                <div class="text-xs font-bold text-gray-300">⚙️ トラッキング連動設定</div>
-                <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>頭の回転感度</span><span id="headSensVal">1.2</span></div>
-                    <input type="range" id="headSens" class="w-full" min="0.5" max="2.5" step="0.1" value="1.2">
+            <!-- ペイント塗り分けツール -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3">
+                <label class="text-xs font-bold text-[#79c0ff]">2. 塗り分けパーツ選択</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="toolHead" class="bg-red-900/50 hover:bg-red-800 text-red-200 text-xs py-1.5 rounded border border-red-500 font-bold">🔴 頭部を塗る</button>
+                    <button id="toolBody" class="bg-blue-900/50 hover:bg-blue-800 text-blue-200 text-xs py-1.5 rounded border border-blue-500 font-bold">🔵 胴体を塗る</button>
                 </div>
-                <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>胴体の連動率</span><span id="bodySensVal">0.3</span></div>
-                    <input type="range" id="bodySens" class="w-full" min="0" max="0.8" step="0.05" value="0.3">
+                <div class="flex items-center gap-2 pt-1">
+                    <span class="text-[10px] text-gray-400">ブラシ太さ:</span>
+                    <input type="range" id="brushSize" min="5" max="50" value="20" class="flex-1">
+                    <button id="clearPaintBtn" class="bg-gray-800 text-gray-300 text-[10px] px-2 py-1 rounded">リセット</button>
+                </div>
+            </div>
+
+            <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full">
+                ✨ 塗った通りに3Dモデル生成！
+            </button>
+        </div>
+
+        <!-- 中央：ペイントキャンバス ＆ 右：3Dプレビュー -->
+        <div class="flex-1 flex gap-4 min-h-0">
+            <!-- 2D塗り絵キャンバス -->
+            <div class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
+                <div class="text-xs text-gray-400 absolute top-2 left-2">🎨 マスクペイント画面 (ドラッグで塗る)</div>
+                <div class="relative max-h-full max-w-full flex items-center justify-center overflow-hidden">
+                    <canvas id="paintCanvas" class="max-h-[70vh] max-w-full border border-gray-700 cursor-crosshair"></canvas>
+                </div>
+            </div>
+
+            <!-- 3Dビューポート -->
+            <div class="flex-1 panel relative overflow-hidden flex flex-col">
+                <div id="canvasContainer" class="w-full flex-1"></div>
+                <video id="webcam" class="hidden" autoplay playsinline></video>
+                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]">
+                    画像を選択してパーツを塗ってください
                 </div>
             </div>
         </div>
 
-        <!-- 右：3Dビューポート -->
-        <div class="flex-1 panel relative overflow-hidden flex flex-col">
-            <div id="canvasContainer" class="w-full flex-1"></div>
-            <video id="webcam" class="hidden" autoplay playsinline></video>
-            <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]">
-                立ち絵画像を選択してください
-            </div>
-        </div>
     </div>
 
 <script>
+    // 1. 2Dペイントキャンバス設定
+    const paintCanvas = document.getElementById('paintCanvas');
+    const paintCtx = paintCanvas.getContext('2d');
+    let loadedImage = null;
+
+    let currentTool = 'head'; // 'head' または 'body'
+    let isDrawing = false;
+    let brushSize = 20;
+
+    // マスクデータ用キャンバス (非表示)
+    const maskHeadCanvas = document.createElement('canvas');
+    const maskHeadCtx = maskHeadCanvas.getContext('2d');
+    const maskBodyCanvas = document.createElement('canvas');
+    const maskBodyCtx = maskBodyCanvas.getContext('2d');
+
+    document.getElementById('toolHead').onclick = () => currentTool = 'head';
+    document.getElementById('toolBody').onclick = () => currentTool = 'body';
+    document.getElementById('brushSize').oninput = (e) => brushSize = e.target.value;
+
+    document.getElementById('imageInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            loadedImage = new Image();
+            loadedImage.onload = () => {
+                paintCanvas.width = loadedImage.width;
+                paintCanvas.height = loadedImage.height;
+                maskHeadCanvas.width = loadedImage.width;
+                maskHeadCanvas.height = loadedImage.height;
+                maskBodyCanvas.width = loadedImage.width;
+                maskBodyCanvas.height = loadedImage.height;
+
+                resetPaintCanvas();
+            };
+            loadedImage.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    function resetPaintCanvas() {
+        if (!loadedImage) return;
+        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+        paintCtx.drawImage(loadedImage, 0, 0);
+
+        maskHeadCtx.clearRect(0, 0, maskHeadCanvas.width, maskHeadCanvas.height);
+        maskBodyCtx.clearRect(0, 0, maskBodyCanvas.width, maskBodyCanvas.height);
+    }
+    document.getElementById('clearPaintBtn').onclick = resetPaintCanvas;
+
+    // お絵描きイベント
+    function getCanvasCoords(e) {
+        const rect = paintCanvas.getBoundingClientRect();
+        const scaleX = paintCanvas.width / rect.width;
+        const scaleY = paintCanvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    }
+
+    paintCanvas.onmousedown = (e) => { isDrawing = true; draw(e); };
+    paintCanvas.onmousemove = (e) => { if (isDrawing) draw(e); };
+    paintCanvas.onmouseup = () => isDrawing = false;
+
+    function draw(e) {
+        const { x, y } = getCanvasCoords(e);
+
+        // 表示用キャンバスへの描画（半透明の赤・青）
+        paintCtx.fillStyle = currentTool === 'head' ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 100, 255, 0.5)';
+        paintCtx.beginPath();
+        paintCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+        paintCtx.fill();
+
+        // マスク専用キャンバスへの描画（白塗り）
+        const targetCtx = currentTool === 'head' ? maskHeadCtx : maskBodyCtx;
+        targetCtx.fillStyle = '#ffffff';
+        targetCtx.beginPath();
+        targetCtx.arc(x, y, brushSize, 0, Math.PI * 2);
+        targetCtx.fill();
+    }
+
+    // 2. 塗られたマスクから3Dモデルを安全作成
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1117);
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 1.4, 2.5);
+    camera.position.set(0, 1.2, 2.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-    const gridHelper = new THREE.GridHelper(10, 10, 0x58a6ff, 0x30363d);
-    scene.add(gridHelper);
 
     let characterGroup = null;
     let headBone = null;
     let chestBone = null;
 
-    const imageInput = document.getElementById('imageInput');
-    const statusBadge = document.getElementById('statusBadge');
-    const webcamElement = document.getElementById('webcam');
-    const startCamBtn = document.getElementById('startCamBtn');
+    document.getElementById('buildModelBtn').onclick = () => {
+        if (!loadedImage) return;
 
-    document.getElementById('bgDark').onclick = () => { scene.background = new THREE.Color(0x0d1117); gridHelper.visible = true; };
-    document.getElementById('bgGreen').onclick = () => { scene.background = new THREE.Color(0x00ff00); gridHelper.visible = false; };
-    document.getElementById('bgRed').onclick = () => { scene.background = new THREE.Color(0xff0000); gridHelper.visible = false; };
-    document.getElementById('bgBlue').onclick = () => { scene.background = new THREE.Color(0x0000ff); gridHelper.visible = false; };
-
-    imageInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const img = new Image();
-            img.onload = () => buildVtuberModel(img);
-            img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-
-    function buildVtuberModel(imgElement) {
         if (characterGroup) scene.remove(characterGroup);
-
         characterGroup = new THREE.Group();
 
-        const canvas = document.createElement('canvas');
-        canvas.width = imgElement.width;
-        canvas.height = imgElement.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(imgElement, 0, 0);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
-
-        const aspect = imgElement.height / imgElement.width;
+        const aspect = loadedImage.height / loadedImage.width;
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // 胴体 (Chest) ボーン
+        // 胴体パーツ作成（Bodyマスクでくり抜き）
+        const bodyTextureCanvas = extractMaskedTexture(loadedImage, maskBodyCanvas);
+        const bodyTexture = new THREE.CanvasTexture(bodyTextureCanvas);
+
         chestBone = new THREE.Group();
-        chestBone.position.set(0, 1.0, 0);
+        chestBone.position.set(0, 0.5, 0);
+        const bodyMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(totalW, totalH),
+            new THREE.MeshBasicMaterial({ map: bodyTexture, transparent: true, side: THREE.DoubleSide })
+        );
+        bodyMesh.position.set(0, totalH / 2 - 0.5, 0);
+        chestBone.add(bodyMesh);
 
-        const chestGeo = new THREE.PlaneGeometry(totalW, totalH * 0.6);
-        const chestMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-        const chestMesh = new THREE.Mesh(chestGeo, chestMat);
-        chestMesh.position.set(0, -0.2, 0);
-        chestBone.add(chestMesh);
+        // 頭部パーツ作成（Headマスクでくり抜き）
+        const headTextureCanvas = extractMaskedTexture(loadedImage, maskHeadCanvas);
+        const headTexture = new THREE.CanvasTexture(headTextureCanvas);
 
-        // 頭部 (Head) ボーン：首元を回転軸の真中心（0, 0, 0）にする
         headBone = new THREE.Group();
-        headBone.position.set(0, totalH * 0.25, 0.01); // 首の付け根の位置
-
-        const headGeo = new THREE.PlaneGeometry(totalW, totalH * 0.5);
-        const headMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-        const headMesh = new THREE.Mesh(headGeo, headMat);
-        headMesh.position.set(0, 0.1, 0); // 首元を中心としたオフセット値に修正
+        headBone.position.set(0, totalH * 0.5, 0.01); // 首の位置
+        const headMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(totalW, totalH),
+            new THREE.MeshBasicMaterial({ map: headTexture, transparent: true, side: THREE.DoubleSide })
+        );
+        headMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0);
         headBone.add(headMesh);
 
         chestBone.add(headBone);
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        statusBadge.innerText = "✨ VTuberモデル修正完了！カメラを起動してください";
+        document.getElementById('statusBadge').innerText = "✨ マスク抽出完了！カメラを起動して動かせます！";
+    };
+
+    function extractMaskedTexture(sourceImg, maskCanvas) {
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = sourceImg.width;
+        outCanvas.height = sourceImg.height;
+        const ctx = outCanvas.getContext('2d');
+
+        // 原画を描画
+        ctx.drawImage(sourceImg, 0, 0);
+        // マスク領域以外をくり抜く（destination-in）
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(maskCanvas, 0, 0);
+
+        return outCanvas;
     }
 
+    // 3. トラッキング設定
     let isTracking = false;
-    const faceMesh = new FaceMesh({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-
-    faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: true,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-    });
+    const webcamElement = document.getElementById('webcam');
+    const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+    faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
 
     faceMesh.onResults((results) => {
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-            statusBadge.innerText = "🔍 顔を探しています...";
-            return;
-        }
-
-        statusBadge.innerText = "🔴 VTuberトラッキング中！";
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
         const landmarks = results.multiFaceLandmarks[0];
 
         const nose = landmarks[1];
         const leftEye = landmarks[33];
         const rightEye = landmarks[263];
 
-        const sens = parseFloat(document.getElementById('headSens').value);
-        const bodySens = parseFloat(document.getElementById('bodySens').value);
-
         const deltaX = rightEye.x - leftEye.x;
         const deltaY = rightEye.y - leftEye.y;
 
-        const roll = Math.atan2(deltaY, deltaX) * sens;
-        const yaw = (0.5 - nose.x) * 1.8 * sens;
-        const pitch = (nose.y - 0.5) * 1.5 * sens;
+        const roll = Math.atan2(deltaY, deltaX) * 1.2;
+        const yaw = (0.5 - nose.x) * 1.8;
+        const pitch = (nose.y - 0.5) * 1.5;
 
-        if (headBone) {
-            headBone.rotation.set(-pitch, -yaw, -roll);
-        }
-
-        if (chestBone) {
-            chestBone.rotation.set(-pitch * bodySens, -yaw * bodySens, -roll * bodySens);
-        }
+        if (headBone) headBone.rotation.set(-pitch, -yaw, -roll);
+        if (chestBone) chestBone.rotation.set(-pitch * 0.3, -yaw * 0.3, -roll * 0.3);
     });
 
-    startCamBtn.onclick = async () => {
+    document.getElementById('startCamBtn').onclick = async () => {
         if (isTracking) return;
-        statusBadge.innerText = "⏳ Webカメラを起動しています...";
-
-        try {
-            const cameraUtils = new Camera(webcamElement, {
-                onFrame: async () => {
-                    await faceMesh.send({ image: webcamElement });
-                },
-                width: 640,
-                height: 480
-            });
-            await cameraUtils.start();
-            isTracking = true;
-            startCamBtn.className = "bg-gray-600 text-white text-xs px-4 py-1.5 rounded font-bold cursor-not-allowed";
-            startCamBtn.innerText = "🟢 トラッキング動作中";
-        } catch (err) {
-            statusBadge.innerText = "❌ カメラ起動エラー: " + err.message;
-        }
+        const cameraUtils = new Camera(webcamElement, {
+            onFrame: async () => { await faceMesh.send({ image: webcamElement }); },
+            width: 640, height: 480
+        });
+        await cameraUtils.start();
+        isTracking = true;
     };
-
-    document.getElementById('headSens').oninput = (e) => document.getElementById('headSensVal').innerText = e.target.value;
-    document.getElementById('bodySens').oninput = (e) => document.getElementById('bodySensVal').innerText = e.target.value;
 
     function animate() {
         requestAnimationFrame(animate);
         renderer.render(scene, camera);
     }
     animate();
-
-    window.addEventListener('resize', () => {
-        camera.aspect = container.clientWidth / container.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(container.clientWidth, container.clientHeight);
-    });
 </script>
 </body>
 </html>
