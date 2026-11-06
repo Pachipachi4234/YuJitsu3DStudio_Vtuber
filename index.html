@@ -160,7 +160,6 @@
     document.getElementById('bgRed').onclick = () => { scene.background = new THREE.Color(0xff0000); gridHelper.visible = false; };
     document.getElementById('bgBlue').onclick = () => { scene.background = new THREE.Color(0x0000ff); gridHelper.visible = false; };
 
-    // 画像選択時の即時3D化処理
     imageInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -183,25 +182,20 @@
     });
 
     function create3DModel(imgElement, fileName) {
-        const canvas = document.createElement('canvas');
-        canvas.width = imgElement.width;
-        canvas.height = imgElement.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(imgElement, 0, 0);
+        const imgW = imgElement.width;
+        const imgH = imgElement.height;
 
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
-
-        const aspect = imgElement.height / imgElement.width;
+        const aspect = imgH / imgW;
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
+        // クロップ切り抜き定義（ピクセル範囲）
         const partsDefinition = [
-            { id: "root", name: "腰・全体 (Root)", parent: null, uv: [0, 0, 1, 1], pivot: [0, 0, 0], bounds: [totalW, totalH] },
-            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", uv: [0.15, 0.2, 0.7, 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
-            { id: "head", name: "頭部 (Head)", parent: "chest", uv: [0.05, 0.55, 0.9, 0.45], pivot: [0, 0.6, 0.02], bounds: [totalW * 0.9, totalH * 0.45] },
-            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", uv: [0.55, 0.25, 0.4, 0.4], pivot: [totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] },
-            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", uv: [0.05, 0.25, 0.4, 0.4], pivot: [-totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] }
+            { id: "root", name: "腰・全体 (Root)", parent: null, crop: [0, 0, imgW, imgH], pivot: [0, 0, 0], bounds: [totalW, totalH] },
+            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.15, imgH * 0.2, imgW * 0.7, imgH * 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
+            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.05, imgH * 0.0, imgW * 0.9, imgH * 0.45], pivot: [0, 0.6, 0.02], bounds: [totalW * 0.9, totalH * 0.45] },
+            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.55, imgH * 0.25, imgW * 0.4, imgH * 0.4], pivot: [totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] },
+            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.25, imgW * 0.4, imgH * 0.4], pivot: [-totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] }
         ];
 
         const modelGroup = new THREE.Group();
@@ -210,26 +204,25 @@
         const bonesMap = {};
         const createdGroups = {};
 
-        // 1. 全パーツのグループを先に独立して作成
         partsDefinition.forEach(p => {
             const boneGroup = new THREE.Group();
             boneGroup.position.set(...p.pivot);
 
+            // Canvasで画像部分切り抜き
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = p.crop[2];
+            cropCanvas.height = p.crop[3];
+            const ctx = cropCanvas.getContext('2d');
+            ctx.drawImage(imgElement, p.crop[0], p.crop[1], p.crop[2], p.crop[3], 0, 0, p.crop[2], p.crop[3]);
+
+            const texture = new THREE.CanvasTexture(cropCanvas);
+            texture.needsUpdate = true;
+
             const pW = p.bounds[0];
             const pH = p.bounds[1];
             const geo = new THREE.PlaneGeometry(pW, pH);
-
-            const uvAttr = geo.attributes.uv;
-            for (let i = 0; i < uvAttr.count; i++) {
-                let u = uvAttr.getX(i);
-                let v = uvAttr.getY(i);
-                u = Math.min(Math.max(p.uv[0] + u * p.uv[2], 0), 1);
-                v = Math.min(Math.max(p.uv[1] + v * p.uv[3], 0), 1);
-                uvAttr.setXY(i, u, v);
-            }
-            uvAttr.needsUpdate = true;
-
             const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+
             const mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(0, (p.id === 'root') ? totalH / 2 : 0, 0);
             boneGroup.add(mesh);
@@ -241,7 +234,7 @@
             bonesMap[p.id] = { group: boneGroup, data: p };
         });
 
-        // 2. 確実に安全な親子接続ロジック
+        // 階層接続
         partsDefinition.forEach(p => {
             const currentGroup = createdGroups[p.id];
             if (p.parent && createdGroups[p.parent]) {
