@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu 3D Studio | Instant Engine</title>
+    <title>YuJitsu 3D Studio | Fixed Layering Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -18,11 +18,10 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Instant Edition</span></h1>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Layer Fixed Edition</span></h1>
             <p class="text-xs text-gray-400">即時3D化・マルチモデル・.yj3d保存/復元対応スタジオ</p>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 背景色切り替え -->
             <span class="text-xs text-gray-400">背景:</span>
             <button id="bgDark" class="bg-btn bg-[#0d1117] text-white">Dark</button>
             <button id="bgGreen" class="bg-btn bg-[#00ff00] text-black">GB (緑)</button>
@@ -31,7 +30,6 @@
             
             <div class="h-4 w-[1px] bg-[#30363d] mx-1"></div>
 
-            <!-- .yj3d 機能 -->
             <label class="bg-[#21262d] hover:bg-[#30363d] text-white text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] cursor-pointer transition">
                 📂 .yj3d 開く
                 <input type="file" id="importYj3dInput" accept=".yj3d,application/json" class="hidden">
@@ -52,14 +50,12 @@
         <!-- 左パネル -->
         <div class="w-80 panel p-4 flex flex-col gap-4 overflow-y-auto flex-none">
             
-            <!-- ① 即時3Dモデル追加 -->
             <div class="border-b border-[#30363d] pb-3 space-y-2">
                 <h2 class="text-sm font-bold text-[#79c0ff]">➕ 立ち絵を追加（即時3D化）</h2>
                 <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
                 <p class="text-[10px] text-gray-400">※画像を選ぶと即座に3D表示されます</p>
             </div>
 
-            <!-- ② オブジェクト＆ボーン選択 -->
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs mb-1 text-[#79c0ff] font-bold">📦 操作オブジェクト選択</label>
@@ -76,7 +72,7 @@
                 </div>
             </div>
 
-            <!-- ③ 回転スライダー -->
+            <!-- 回転スライダー -->
             <div class="space-y-3 bg-[#010409] p-3 rounded border border-[#30363d]">
                 <div class="text-xs font-bold text-gray-300">関節角度 (deg)</div>
                 <div>
@@ -93,7 +89,6 @@
                 </div>
             </div>
 
-            <!-- 出力機能 -->
             <div class="mt-auto space-y-2 pt-2 border-t border-[#30363d]">
                 <button id="capturePngBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2 rounded font-bold w-full transition">
                     📷 クロマキー画像出力 (PNG)
@@ -154,7 +149,6 @@
     const exportYj3dBtn = document.getElementById('exportYj3dBtn');
     const importYj3dInput = document.getElementById('importYj3dInput');
 
-    // 背景切り替え
     document.getElementById('bgDark').onclick = () => { scene.background = new THREE.Color(0x0d1117); gridHelper.visible = true; };
     document.getElementById('bgGreen').onclick = () => { scene.background = new THREE.Color(0x00ff00); gridHelper.visible = false; };
     document.getElementById('bgRed').onclick = () => { scene.background = new THREE.Color(0xff0000); gridHelper.visible = false; };
@@ -189,13 +183,13 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // Rootはメッシュなしの親ボーンとし、パーツだけ切り抜いて配置
+        // zOffsetで前後（重ね順）のチークチル障害・透過透けを物理排除
         const partsDefinition = [
             { id: "root", name: "腰・全体 (Root)", parent: null, isPivotOnly: true, pivot: [0, 0, 0] },
-            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.2, imgH * 0.35, imgW * 0.6, imgH * 0.45], pivot: [0, 0.6, 0.01], bounds: [totalW * 0.6, totalH * 0.45] },
-            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.1, 0, imgW * 0.8, imgH * 0.45], pivot: [0, 0.65, 0.02], bounds: [totalW * 0.8, totalH * 0.45] },
-            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.6, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [totalW * 0.25, 0.1, 0.03], bounds: [totalW * 0.35, totalH * 0.35] },
-            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [-totalW * 0.25, 0.1, 0.03], bounds: [totalW * 0.35, totalH * 0.35] }
+            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", crop: [imgW * 0.2, imgH * 0.35, imgW * 0.6, imgH * 0.45], pivot: [0, 0.6, 0.005], bounds: [totalW * 0.6, totalH * 0.45], zOffset: 0.001 },
+            { id: "head", name: "頭部 (Head)", parent: "chest", crop: [imgW * 0.1, 0, imgW * 0.8, imgH * 0.45], pivot: [0, 0.65, 0.01], bounds: [totalW * 0.8, totalH * 0.45], zOffset: 0.005 },
+            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", crop: [imgW * 0.6, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [totalW * 0.25, 0.1, 0.008], bounds: [totalW * 0.35, totalH * 0.35], zOffset: 0.002 },
+            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", crop: [imgW * 0.05, imgH * 0.3, imgW * 0.35, imgH * 0.35], pivot: [-totalW * 0.25, 0.1, 0.008], bounds: [totalW * 0.35, totalH * 0.35], zOffset: 0.002 }
         ];
 
         const modelGroup = new THREE.Group();
@@ -208,11 +202,10 @@
             const boneGroup = new THREE.Group();
             boneGroup.position.set(...p.pivot);
 
-            // 関節ピン
-            const jointMark = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), new THREE.MeshBasicMaterial({ color: 0x58a6ff }));
+            const jointMark = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 16), new THREE.MeshBasicMaterial({ color: 0x58a6ff }));
+            jointMark.position.z = 0.02;
             boneGroup.add(jointMark);
 
-            // PivotOnly（Rootなど）以外は画像をメッシュ化
             if (!p.isPivotOnly) {
                 const cropCanvas = document.createElement('canvas');
                 cropCanvas.width = p.crop[2];
@@ -226,9 +219,18 @@
                 const pW = p.bounds[0];
                 const pH = p.bounds[1];
                 const geo = new THREE.PlaneGeometry(pW, pH);
-                const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+
+                // zWriteとdepthTest、明確なdepthWrite制御で透過透けを制御
+                const mat = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    transparent: true,
+                    alphaTest: 0.05,
+                    depthWrite: true,
+                    side: THREE.DoubleSide
+                });
 
                 const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.z = p.zOffset || 0;
                 boneGroup.add(mesh);
             }
 
@@ -236,7 +238,6 @@
             bonesMap[p.id] = { group: boneGroup, data: p };
         });
 
-        // 階層接続
         partsDefinition.forEach(p => {
             const currentGroup = createdGroups[p.id];
             if (p.parent && createdGroups[p.parent]) {
@@ -304,7 +305,6 @@
         statusBadge.innerText = "🧹 すべての3Dモデルを消去しました";
     };
 
-    // .yj3d 保存
     exportYj3dBtn.onclick = () => {
         if (activeModelIndex < 0 || !modelsList[activeModelIndex]) return;
         const currentModel = modelsList[activeModelIndex];
@@ -326,7 +326,6 @@
         a.click();
     };
 
-    // .yj3d 復元
     importYj3dInput.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -356,7 +355,6 @@
         reader.readAsText(file);
     };
 
-    // 回転スライダー
     const rotX = document.getElementById('rotX');
     const rotY = document.getElementById('rotY');
     const rotZ = document.getElementById('rotZ');
@@ -400,7 +398,6 @@
         document.getElementById('rotZVal').innerText = rotZ.value + '°';
     };
 
-    // 画像キャプチャ
     document.getElementById('capturePngBtn').onclick = () => {
         renderer.render(scene, camera);
         const a = document.createElement('a');
