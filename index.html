@@ -18,7 +18,7 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Safe Edition</span></h1>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu 3D Studio <span class="text-xs text-gray-400 font-normal">Debug Edition</span></h1>
             <p class="text-xs text-gray-400">学タブ対応 2.5Dパーツ分離＆ボーン統合エディタ</p>
         </div>
         <div class="flex gap-2">
@@ -132,47 +132,77 @@
     const boneSelect = document.getElementById('boneSelect');
 
     imageInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        try {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const img = new Image();
-            img.onload = () => {
-                loadedImage = img;
-                imgPreview.src = ev.target.result;
-                imgPreviewBox.classList.remove('hidden');
-                convertBtn.disabled = false;
-                statusBadge.innerText = `✅ 画像ロード完了 (${img.width}x${img.height})`;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedImage = img;
+                    imgPreview.src = ev.target.result;
+                    imgPreviewBox.classList.remove('hidden');
+                    convertBtn.disabled = false;
+                    statusBadge.innerText = `✅ 画像ロード完了 (${img.width}x${img.height})`;
+                    statusBadge.className = "absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]";
+                };
+                img.onerror = (err) => {
+                    statusBadge.innerText = "❌ 画像のデコードに失敗しました";
+                    statusBadge.className = "absolute top-3 left-3 bg-red-900/90 px-3 py-1.5 rounded text-xs text-red-200 border border-red-500";
+                };
+                img.src = ev.target.result;
             };
-            img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
+            reader.readAsDataURL(file);
+        } catch (err) {
+            statusBadge.innerText = "❌ 読込エラー: " + err.message;
+            statusBadge.className = "absolute top-3 left-3 bg-red-900/90 px-3 py-1.5 rounded text-xs text-red-200 border border-red-500";
+        }
     });
 
     convertBtn.addEventListener('click', () => {
-        if (!loadedImage) return;
+        try {
+            if (!loadedImage) {
+                statusBadge.innerText = "⚠️ 画像が選択されていません";
+                return;
+            }
 
-        const texture = new THREE.CanvasTexture(loadedImage);
-        texture.needsUpdate = true;
+            statusBadge.innerText = "⏳ 3Dモデル生成中...";
 
-        const aspect = loadedImage.height / loadedImage.width;
-        const totalH = 2.4;
-        const totalW = totalH / aspect;
+            // テクスチャの安全生成
+            const canvas = document.createElement('canvas');
+            canvas.width = loadedImage.width;
+            canvas.height = loadedImage.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(loadedImage, 0, 0);
 
-        // パーツ構造定義
-        const partsDefinition = [
-            { id: "root", name: "腰・全体 (Root)", parent: null, uv: [0, 0, 1, 1], pivot: [0, 0, 0], bounds: [totalW, totalH] },
-            { id: "chest", name: "胸・胴体 (Chest)", parent: "root", uv: [0.15, 0.2, 0.7, 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
-            { id: "head", name: "頭部 (Head)", parent: "chest", uv: [0.05, 0.55, 0.9, 0.45], pivot: [0, 0.6, 0.02], bounds: [totalW * 0.9, totalH * 0.45] },
-            { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", uv: [0.55, 0.25, 0.4, 0.4], pivot: [totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] },
-            { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", uv: [0.05, 0.25, 0.4, 0.4], pivot: [-totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] }
-        ];
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
 
-        currentYj3dData = { version: "2.0_Live2D", bones: partsDefinition };
-        buildSafe25DModel(texture, partsDefinition, totalW, totalH);
-        statusBadge.innerText = "✨ 表示成功！パーツを選択して回転できます。";
-        exportYj3dBtn.disabled = false;
+            const aspect = loadedImage.height / loadedImage.width;
+            const totalH = 2.4;
+            const totalW = totalH / aspect;
+
+            // パーツ構造定義
+            const partsDefinition = [
+                { id: "root", name: "腰・全体 (Root)", parent: null, uv: [0, 0, 1, 1], pivot: [0, 0, 0], bounds: [totalW, totalH] },
+                { id: "chest", name: "胸・胴体 (Chest)", parent: "root", uv: [0.15, 0.2, 0.7, 0.45], pivot: [0, 0.8, 0.01], bounds: [totalW * 0.7, totalH * 0.45] },
+                { id: "head", name: "頭部 (Head)", parent: "chest", uv: [0.05, 0.55, 0.9, 0.45], pivot: [0, 0.6, 0.02], bounds: [totalW * 0.9, totalH * 0.45] },
+                { id: "rArm", name: "右腕 (Right Arm)", parent: "chest", uv: [0.55, 0.25, 0.4, 0.4], pivot: [totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] },
+                { id: "lArm", name: "左腕 (Left Arm)", parent: "chest", uv: [0.05, 0.25, 0.4, 0.4], pivot: [-totalW * 0.3, 0.4, 0.03], bounds: [totalW * 0.4, totalH * 0.4] }
+            ];
+
+            currentYj3dData = { version: "2.0_Live2D", bones: partsDefinition };
+            buildSafe25DModel(texture, partsDefinition, totalW, totalH);
+            
+            statusBadge.innerText = "✨ 表示成功！パーツを選択して回転できます。";
+            statusBadge.className = "absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]";
+            exportYj3dBtn.disabled = false;
+
+        } catch (err) {
+            statusBadge.innerText = "❌ 生成エラー: " + err.message;
+            statusBadge.className = "absolute top-3 left-3 bg-red-900/90 px-3 py-1.5 rounded text-xs text-red-200 border border-red-500";
+        }
     });
 
     function buildSafe25DModel(texture, parts, totalW, totalH) {
@@ -189,13 +219,11 @@
             const pH = p.bounds[1];
             const geo = new THREE.PlaneGeometry(pW, pH);
 
-            // エラーを極力回避する安全なUV切り出し
             const uvAttr = geo.attributes.uv;
             for (let i = 0; i < uvAttr.count; i++) {
                 let u = uvAttr.getX(i);
                 let v = uvAttr.getY(i);
                 
-                // 0.0 〜 1.0 の範囲に安全にクランプ
                 u = Math.min(Math.max(p.uv[0] + u * p.uv[2], 0), 1);
                 v = Math.min(Math.max(p.uv[1] + v * p.uv[3], 0), 1);
                 
@@ -213,7 +241,6 @@
             mesh.position.set(0, (p.id === 'root') ? totalH / 2 : 0, 0);
             boneGroup.add(mesh);
 
-            // 関節ピン
             const jointMark = new THREE.Mesh(
                 new THREE.SphereGeometry(0.04, 16, 16),
                 new THREE.MeshBasicMaterial({ color: 0x58a6ff })
@@ -228,7 +255,6 @@
             boneSelect.appendChild(opt);
         });
 
-        // 階層結合
         parts.forEach(p => {
             if (p.parent && bonesMap[p.parent]) {
                 bonesMap[p.parent].group.add(bonesMap[p].group);
@@ -244,7 +270,6 @@
         controls.update();
     }
 
-    // スライダー回転同期
     const rotX = document.getElementById('rotX');
     const rotY = document.getElementById('rotY');
     const rotZ = document.getElementById('rotZ');
