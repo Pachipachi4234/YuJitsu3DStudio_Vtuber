@@ -504,33 +504,35 @@
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
 
-    faceMesh.onResults((results) => {
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-        const landmarks = results.multiFaceLandmarks[0];
+faceMesh.onResults((results) => {
+    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+    const landmarks = results.multiFaceLandmarks[0];
 
-        const nose = landmarks[1];
-        const leftEye = landmarks[33];
-        const rightEye = landmarks[263];
+    const nose = landmarks[1];
+    const leftEye = landmarks[33];
+    const rightEye = landmarks[263];
 
-        const deltaX = rightEye.x - leftEye.x;
-        const deltaY = rightEye.y - leftEye.y;
+    const deltaX = rightEye.x - leftEye.x;
+    const deltaY = rightEye.y - leftEye.y;
 
-        const roll = Math.atan2(deltaY, deltaX) * 1.2;
-        const yaw = (0.5 - nose.x) * 1.8;
-        const pitch = (nose.y - 0.5) * 1.5;
+    // Z軸回転（首のかしげ）の向きを反転させて自分の動きと完全同期
+    const roll = -Math.atan2(deltaY, deltaX) * 1.2; 
+    const yaw = (0.5 - nose.x) * 1.8;
+    const pitch = (nose.y - 0.5) * 1.5;
 
-        if (headBone) headBone.rotation.set(-pitch, -yaw, -roll);
-        if (chestBone) chestBone.rotation.set(-pitch * 0.3, -yaw * 0.3, -roll * 0.3);
+    if (headBone) headBone.rotation.set(-pitch, yaw, roll);
+    if (chestBone) chestBone.rotation.set(-pitch * 0.3, yaw * 0.3, roll * 0.3);
 
-        const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
-        const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
-        const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
+    // 目・口のトラッキングはそのまま
+    const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
+    const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
+    const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
 
-        if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+    if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
 
-        const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
-    });
+    const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
+    if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+});
 
     document.getElementById('startCamBtn').onclick = async () => {
         if (isTracking) return;
