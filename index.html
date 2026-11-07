@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | Game ScreenShare & Alpha Fix</title>
+    <title>YuJitsu Studio | .yj3d File Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -23,13 +23,12 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">Game ScreenShare Edition</span></h1>
-            <p class="text-xs text-gray-400">透過PNGバグ修正 ＆ ゲーム画面共有背景対応</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">.yj3d Format Support</span></h1>
+            <p class="text-xs text-gray-400">塗り分け保存(.yj3d) ＆ 完全ブラウザ即時VTuber化エンジン</p>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 背景ゲーム画面共有ボタン -->
             <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
-                📺 ゲーム画面共有 (背景に敷く)
+                📺 ゲーム画面共有 (背景)
             </button>
             <button id="stopShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
                 ❌ 画面共有解除
@@ -50,8 +49,9 @@
         <div class="w-80 panel p-4 flex flex-col gap-3 overflow-y-auto flex-none">
             
             <div class="space-y-1 border-b border-[#30363d] pb-3">
-                <label class="text-xs font-bold text-[#79c0ff]">1. 立ち絵読み込み</label>
-                <input type="file" id="imageInput" accept="image/*" class="input-ui text-xs cursor-pointer">
+                <label class="text-xs font-bold text-[#79c0ff]">1. モデル読み込み（画像 or .yj3d）</label>
+                <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
+                <p class="text-[10px] text-gray-400">※過去に保存した .yj3d を選ぶと即座に再現！</p>
             </div>
 
             <!-- ツール選択 -->
@@ -78,19 +78,22 @@
                     <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
                 </div>
 
-                <!-- Ctrl+Z Undo / Redo -->
                 <div class="flex gap-2 pt-2">
                     <button id="undoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↩️ 戻す (Ctrl+Z)</button>
                     <button id="redoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↪️ やり直し</button>
                 </div>
-                <div class="flex justify-between items-center pt-1">
-                    <button id="clearPaintBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded w-full">全消しリセット</button>
-                </div>
             </div>
 
-            <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-3 rounded font-bold transition w-full shadow-lg">
-                ✨ 塗った部位で3D化 ＆ トラッキング準備！
-            </button>
+            <!-- 3D生成 & 保存 -->
+            <div class="space-y-2">
+                <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
+                    ✨ 塗った部位で3D化！
+                </button>
+                
+                <button id="saveYj3dBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
+                    💾 .yj3d ファイルとして保存
+                </button>
+            </div>
         </div>
 
         <!-- 中央：キャンバス & 右：3Dプレビュー -->
@@ -103,16 +106,13 @@
                 </div>
             </div>
 
-            <!-- 3Dビューポート（背景にゲーム画面を表示可能） -->
+            <!-- 3Dビューポート -->
             <div class="flex-1 panel relative overflow-hidden flex flex-col bg-black">
-                <!-- 画面共有用ビデオ（背景用） -->
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
-                
-                <!-- Three.js Canvas -->
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 <video id="webcam" class="hidden" autoplay playsinline></video>
                 <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20">
-                    立ち絵画像を選択してください
+                    画像または .yj3d ファイルを選択してください
                 </div>
             </div>
         </div>
@@ -120,7 +120,6 @@
     </div>
 
 <script>
-    // --- 1. ペイント & 透過PNG処理エンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
@@ -216,25 +215,35 @@
 
     document.getElementById('brushSize').oninput = (e) => brushSize = parseInt(e.target.value);
 
-    document.getElementById('imageInput').onchange = (e) => {
+    // --- ファイル読み込み（画像 / .yj3d 両対応） ---
+    document.getElementById('fileInput').onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            loadedImage = new Image();
-            loadedImage.onload = () => {
-                const w = loadedImage.width;
-                const h = loadedImage.height;
 
-                paintCanvas.width = w; paintCanvas.height = h;
-                Object.keys(maskCanvases).forEach(k => { maskCanvases[k].width = w; maskCanvases[k].height = h; });
-
-                undoStack.length = 0; redoStack.length = 0;
-                resetPaintCanvas();
+        if (file.name.endsWith('.yj3d')) {
+            // .yj3d ファイルのロード
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const yjData = JSON.parse(ev.target.result);
+                loadYj3dData(yjData);
             };
-            loadedImage.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
+            reader.readAsText(file);
+        } else {
+            // 通常画像ロード
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                loadedImage = new Image();
+                loadedImage.onload = () => {
+                    const w = loadedImage.width, h = loadedImage.height;
+                    paintCanvas.width = w; paintCanvas.height = h;
+                    Object.keys(maskCanvases).forEach(k => { maskCanvases[k].width = w; maskCanvases[k].height = h; });
+                    undoStack.length = 0; redoStack.length = 0;
+                    resetPaintCanvas();
+                };
+                loadedImage.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     function resetPaintCanvas() {
@@ -243,7 +252,6 @@
         paintCtx.drawImage(loadedImage, 0, 0);
         Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
-    document.getElementById('clearPaintBtn').onclick = () => { saveState(); resetPaintCanvas(); };
 
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
@@ -275,12 +283,11 @@
             maskCtx.globalCompositeOperation = 'destination-out';
             maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
             maskCtx.restore();
-            redrawPaintCanvas();
         } else {
             maskCtx.fillStyle = '#ffffff';
             maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
-            redrawPaintCanvas();
         }
+        redrawPaintCanvas();
     }
 
     function redrawPaintCanvas() {
@@ -344,10 +351,64 @@
         redrawPaintCanvas();
     }
 
-    // --- 2. Three.js 3D構築（アルファ透過バグ修正版） ---
+    // --- 💾 .yj3d の保存機能 ---
+    document.getElementById('saveYj3dBtn').onclick = () => {
+        if (!loadedImage) return;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = loadedImage.width; tempCanvas.height = loadedImage.height;
+        tempCanvas.getContext('2d').drawImage(loadedImage, 0, 0);
+
+        const yj3dData = {
+            version: "1.0",
+            image: tempCanvas.toDataURL('image/png'),
+            masks: {
+                head: maskCanvases.head.toDataURL('image/png'),
+                body: maskCanvases.body.toDataURL('image/png'),
+                eyes: maskCanvases.eyes.toDataURL('image/png'),
+                mouth: maskCanvases.mouth.toDataURL('image/png')
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(yj3dData)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `vtuber_model_${Date.now()}.yj3d`;
+        a.click();
+    };
+
+    // --- 📂 .yj3d の復元機能 ---
+    function loadYj3dData(yjData) {
+        const img = new Image();
+        img.onload = () => {
+            loadedImage = img;
+            const w = img.width, h = img.height;
+            paintCanvas.width = w; paintCanvas.height = h;
+
+            let loadedCount = 0;
+            Object.keys(maskCanvases).forEach(part => {
+                maskCanvases[part].width = w; maskCanvases[part].height = h;
+                const mImg = new Image();
+                mImg.onload = () => {
+                    maskCtxs[part].clearRect(0, 0, w, h);
+                    maskCtxs[part].drawImage(mImg, 0, 0);
+                    loadedCount++;
+                    if (loadedCount === 4) {
+                        redrawPaintCanvas();
+                        document.getElementById('buildModelBtn').click(); // 自動3D構築
+                        document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！";
+                    }
+                };
+                mImg.src = yjData.masks[part];
+            });
+        };
+        img.src = yjData.image;
+    }
+
+    // --- 2. Three.js 3D構築 ---
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
-    scene.background = null; // 完全透明にしてゲーム画面の上に重ねる
+    scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(0, 1.2, 2.5);
@@ -375,7 +436,6 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
-        // アルファ透過を維持したテクスチャ抽出
         const createPartMesh = (maskCanvas, zOffset, parentBone) => {
             const outCanvas = document.createElement('canvas');
             outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
@@ -395,15 +455,12 @@
             return mesh;
         };
 
-        // 胴体
         chestBone = new THREE.Group(); chestBone.position.set(0, 0.5, 0);
         createPartMesh(maskCanvases.body, 0, chestBone);
 
-        // 頭部
         headBone = new THREE.Group(); headBone.position.set(0, totalH * 0.5, 0.01);
         createPartMesh(maskCanvases.head, 0, headBone);
 
-        // 目 & 口
         eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone);
         mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
 
@@ -411,29 +468,23 @@
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ アルファ透過バグ修正完了！キャラが綺麗に切り抜けました";
+        document.getElementById('statusBadge').innerText = "✨ 3Dモデル化が完了しました！";
     };
 
-    // --- 3. 画面共有（背景にゲーム画面を流す機能） ---
+    // --- 3. 画面共有 (背景) ---
     const screenVideo = document.getElementById('screenVideo');
     const startShareBtn = document.getElementById('startShareBtn');
     const stopShareBtn = document.getElementById('stopShareBtn');
 
     startShareBtn.onclick = async () => {
         try {
-            const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { cursor: "always" },
-                audio: false
-            });
+            const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
             screenVideo.srcObject = mediaStream;
             screenVideo.classList.remove('hidden');
             startShareBtn.classList.add('hidden');
             stopShareBtn.classList.remove('hidden');
-
             mediaStream.getVideoTracks()[0].onended = () => stopScreenShare();
-        } catch (err) {
-            console.log("画面共有キャンセルまたはエラー:", err);
-        }
+        } catch (err) {}
     };
 
     function stopScreenShare() {
