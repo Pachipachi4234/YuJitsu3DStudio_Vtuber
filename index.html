@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | VTuber Studio</title>
+    <title>YuJitsu Studio | 2.5D VTuber Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -23,10 +23,16 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">.yj3d Supported</span></h1>
-            <p class="text-xs text-gray-400">塗り分け保存(.yj3d) ＆ 完全ブラウザ即時VTuber化エンジン</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Live Edition</span></h1>
+            <p class="text-xs text-gray-400">ドラッグ配置・サイズ調整 ＆ 大画面配信対応 VTuberスタジオ</p>
         </div>
         <div class="flex items-center gap-2">
+            <!-- 大画面切替ボタン -->
+            <button id="toggleFullscreenBtn" class="bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition">
+                🖥️ 大画面モード
+            </button>
+
+            <!-- 背景ゲーム画面共有ボタン -->
             <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
                 📺 ゲーム画面共有 (背景)
             </button>
@@ -46,12 +52,23 @@
     <div class="flex-1 flex gap-4 min-h-0">
         
         <!-- 左：操作パネル -->
-        <div class="w-80 panel p-4 flex flex-col gap-3 overflow-y-auto flex-none">
+        <div id="sidePanel" class="w-80 panel p-4 flex flex-col gap-3 overflow-y-auto flex-none transition-all duration-300">
             
             <div class="space-y-1 border-b border-[#30363d] pb-3">
                 <label class="text-xs font-bold text-[#79c0ff]">1. モデル読み込み（画像 or .yj3d）</label>
                 <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
                 <p class="text-[10px] text-gray-400">※過去に保存した .yj3d を選ぶと即座に再現！</p>
+            </div>
+
+            <!-- 3Dモデル調整 (移動・大きさ) -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
+                <label class="text-xs font-bold text-[#79c0ff]">📐 VTuber配置・サイズ調整</label>
+                <div>
+                    <div class="flex justify-between text-[10px] text-gray-400"><span>大きさ (スケール)</span><span id="scaleVal">1.0</span></div>
+                    <input type="range" id="avatarScale" min="0.2" max="3.0" step="0.05" value="1.0" class="w-full">
+                </div>
+                <p class="text-[10px] text-gray-400">💡 3D画面をドラッグで自由移動 / マウスホイールで拡大縮小できます</p>
+                <button id="resetTransformBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded w-full">位置・サイズをリセット</button>
             </div>
 
             <!-- ツール選択 -->
@@ -102,19 +119,19 @@
         <!-- 中央：キャンバス & 右：3Dプレビュー -->
         <div class="flex-1 flex gap-4 min-h-0">
             <!-- ペイントエリア -->
-            <div class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
+            <div id="paintArea" class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
                 <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント</div>
                 <div class="relative max-h-full max-w-full flex items-center justify-center overflow-hidden">
                     <canvas id="paintCanvas" class="max-h-[70vh] max-w-full border border-gray-700 cursor-crosshair"></canvas>
                 </div>
             </div>
 
-            <!-- 3Dビューポート -->
-            <div class="flex-1 panel relative overflow-hidden flex flex-col bg-black">
+            <!-- 3Dビューポート（背景にゲーム画面を表示可能） -->
+            <div id="view3dArea" class="flex-1 panel relative overflow-hidden flex flex-col bg-black cursor-grab active:cursor-grabbing">
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 <video id="webcam" class="hidden" autoplay playsinline></video>
-                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20">
+                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20 pointer-events-none">
                     画像または .yj3d ファイルを選択してください
                 </div>
             </div>
@@ -132,7 +149,6 @@
     let isDrawing = false;
     let brushSize = 20;
 
-    // ibisPaint風バケツドラッグ連続塗り用の変数
     let lastFillX = -1;
     let lastFillY = -1;
     const fillMinDistance = 5;
@@ -223,7 +239,7 @@
 
     document.getElementById('brushSize').oninput = (e) => brushSize = parseInt(e.target.value);
 
-    // --- ファイル読み込み（画像 / .yj3d 両対応） ---
+    // --- ファイル読み込み ---
     document.getElementById('fileInput').onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -272,50 +288,28 @@
         };
     }
 
-    // --- ibisPaint風 連続ドラッグ塗りつぶし対応マウスイベント ---
     paintCanvas.onmousedown = (e) => {
         if (!loadedImage) return;
         saveState();
         isDrawing = true;
-
         const { x, y } = getCanvasCoords(e);
-
-        if (drawMode === 'fill') {
-            floodFill(x, y);
-            lastFillX = x;
-            lastFillY = y;
-        } else {
-            drawBrush(x, y);
-        }
+        if (drawMode === 'fill') { floodFill(x, y); lastFillX = x; lastFillY = y; }
+        else { drawBrush(x, y); }
     };
 
     paintCanvas.onmousemove = (e) => {
         if (!isDrawing || !loadedImage) return;
         const { x, y } = getCanvasCoords(e);
-
         if (drawMode === 'fill') {
             const dist = Math.hypot(x - lastFillX, y - lastFillY);
-            if (dist >= fillMinDistance) {
-                floodFill(x, y);
-                lastFillX = x;
-                lastFillY = y;
-            }
+            if (dist >= fillMinDistance) { floodFill(x, y); lastFillX = x; lastFillY = y; }
         } else if (drawMode === 'brush' || drawMode === 'eraser') {
             drawBrush(x, y);
         }
     };
 
-    paintCanvas.onmouseup = () => {
-        isDrawing = false;
-        lastFillX = -1;
-        lastFillY = -1;
-    };
-
-    paintCanvas.onmouseleave = () => {
-        isDrawing = false;
-        lastFillX = -1;
-        lastFillY = -1;
-    };
+    paintCanvas.onmouseup = () => { isDrawing = false; lastFillX = -1; lastFillY = -1; };
+    paintCanvas.onmouseleave = () => { isDrawing = false; lastFillX = -1; lastFillY = -1; };
 
     function drawBrush(x, y) {
         const maskCtx = maskCtxs[currentPart];
@@ -392,10 +386,9 @@
         redrawPaintCanvas();
     }
 
-    // --- 💾 .yj3d の保存機能 ---
+    // --- .yj3d 保存 / 復元 ---
     document.getElementById('saveYj3dBtn').onclick = () => {
         if (!loadedImage) return;
-
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = loadedImage.width; tempCanvas.height = loadedImage.height;
         tempCanvas.getContext('2d').drawImage(loadedImage, 0, 0);
@@ -418,7 +411,6 @@
         a.click();
     };
 
-    // --- 📂 .yj3d の復元機能 ---
     function loadYj3dData(yjData) {
         const img = new Image();
         img.onload = () => {
@@ -446,13 +438,14 @@
         img.src = yjData.image;
     }
 
-    // --- 2. Three.js 3D構築（頭部吹っ飛びバグ修正） ---
+    // --- 2. Three.js 3D構築 ＆ ドラッグ移動・拡大縮小機能 ---
     const container = document.getElementById('canvasContainer');
+    const view3dArea = document.getElementById('view3dArea');
     const scene = new THREE.Scene();
     scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 1.2, 2.5);
+    camera.position.set(0, 0, 2.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setClearColor(0x000000, 0);
@@ -467,11 +460,73 @@
     let eyesMesh = null;
     let mouthMesh = null;
 
+    // 3Dモデルの位置・拡大縮小（トランスフォーム）変数
+    let isDraggingAvatar = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let avatarPosition = { x: 0, y: -0.4 };
+    let avatarScale = 1.0;
+
+    const avatarScaleInput = document.getElementById('avatarScale');
+    const scaleValDisplay = document.getElementById('scaleVal');
+
+    avatarScaleInput.oninput = (e) => {
+        avatarScale = parseFloat(e.target.value);
+        scaleValDisplay.innerText = avatarScale.toFixed(2);
+        if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1);
+    };
+
+    document.getElementById('resetTransformBtn').onclick = () => {
+        avatarPosition = { x: 0, y: -0.4 };
+        avatarScale = 1.0;
+        avatarScaleInput.value = 1.0;
+        scaleValDisplay.innerText = "1.00";
+        if (characterGroup) {
+            characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
+            characterGroup.scale.set(1, 1, 1);
+        }
+    };
+
+    // 3Dプレビュー画面でのドラッグ移動 ＆ ホイール拡大縮小
+    view3dArea.onmousedown = (e) => {
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        isDraggingAvatar = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    };
+
+    view3dArea.onmousemove = (e) => {
+        if (!isDraggingAvatar || !characterGroup) return;
+
+        const deltaX = e.clientX - previousMousePosition.x;
+        const deltaY = e.clientY - previousMousePosition.y;
+
+        // ビューポートサイズに合わせたワールド座標変換
+        const factor = 0.003;
+        avatarPosition.x += deltaX * factor;
+        avatarPosition.y -= deltaY * factor;
+
+        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+    };
+
+    view3dArea.onmouseup = () => isDraggingAvatar = false;
+    view3dArea.onmouseleave = () => isDraggingAvatar = false;
+
+    view3dArea.onwheel = (e) => {
+        e.preventDefault();
+        const delta = e.deltaY * -0.001;
+        avatarScale = Math.min(Math.max(0.2, avatarScale + delta), 3.0);
+        avatarScaleInput.value = avatarScale.toFixed(2);
+        scaleValDisplay.innerText = avatarScale.toFixed(2);
+        if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1);
+    };
+
     document.getElementById('buildModelBtn').onclick = () => {
         if (!loadedImage) return;
 
         if (characterGroup) scene.remove(characterGroup);
         characterGroup = new THREE.Group();
+        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
+        characterGroup.scale.set(avatarScale, avatarScale, 1);
 
         const aspect = loadedImage.height / loadedImage.width;
         const totalH = 2.4;
@@ -479,8 +534,7 @@
 
         const createPartMesh = (maskCanvas, zOffset, parentBone) => {
             const outCanvas = document.createElement('canvas');
-            outCanvas.width = loadedImage.width; 
-            outCanvas.height = loadedImage.height;
+            outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
             const ctx = outCanvas.getContext('2d');
 
             ctx.drawImage(loadedImage, 0, 0);
@@ -492,24 +546,19 @@
 
             const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
             const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat);
-            
-            // ピボット基準に正しく原点を重ねる
             mesh.position.set(0, 0, zOffset);
             parentBone.add(mesh);
             return mesh;
         };
 
-        // 1. 胴体ボーン
         chestBone = new THREE.Group(); 
         chestBone.position.set(0, 0, 0);
         createPartMesh(maskCanvases.body, 0, chestBone);
 
-        // 2. 頭部ボーン
         headBone = new THREE.Group(); 
         headBone.position.set(0, 0, 0.01);
         createPartMesh(maskCanvases.head, 0, headBone);
 
-        // 3. 目 & 口
         eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone);
         mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
 
@@ -517,7 +566,33 @@
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ 3Dモデル化が完了しました！";
+        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！ドラッグで位置調整できます";
+    };
+
+    // --- 🖥️ 大画面配信モード切替 ---
+    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+    const sidePanel = document.getElementById('sidePanel');
+    const paintArea = document.getElementById('paintArea');
+    let isFullscreenMode = false;
+
+    toggleFullscreenBtn.onclick = () => {
+        isFullscreenMode = !isFullscreenMode;
+        if (isFullscreenMode) {
+            sidePanel.classList.add('hidden');
+            paintArea.classList.add('hidden');
+            toggleFullscreenBtn.innerText = "✏️ 編集モードに戻る";
+            toggleFullscreenBtn.className = "bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition";
+        } else {
+            sidePanel.classList.remove('hidden');
+            paintArea.classList.remove('hidden');
+            toggleFullscreenBtn.innerText = "🖥️ 大画面モード";
+            toggleFullscreenBtn.className = "bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition";
+        }
+        setTimeout(() => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }, 50);
     };
 
     // --- 3. 画面共有 (背景) ---
@@ -547,7 +622,7 @@
     }
     stopShareBtn.onclick = stopScreenShare;
 
-    // --- 4. Webカメラ トラッキング (回転軸修正適用) ---
+    // --- 4. Webカメラ トラッキング ---
     let isTracking = false;
     const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
@@ -605,6 +680,12 @@
         renderer.render(scene, camera);
     }
     animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    });
 </script>
 </body>
 </html>
