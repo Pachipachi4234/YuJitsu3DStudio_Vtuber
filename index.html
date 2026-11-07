@@ -18,10 +18,10 @@
         .btn-mode.active { border-color: #58a6ff; color: #ffffff; background-color: #21262d; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col p-4 gap-4">
+<body class="h-screen w-screen flex flex-col p-4 gap-4" id="appBody">
 
     <!-- ヘッダー -->
-    <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
+    <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
             <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Live Edition</span></h1>
             <p class="text-xs text-gray-400">ドラッグ配置・サイズ調整 ＆ 大画面配信対応 VTuberスタジオ</p>
@@ -64,7 +64,7 @@
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
                 <label class="text-xs font-bold text-[#79c0ff]">📐 VTuber配置・サイズ調整</label>
                 <div>
-                    <div class="flex justify-between text-[10px] text-gray-400"><span>大きさ (スケール)</span><span id="scaleVal">1.0</span></div>
+                    <div class="flex justify-between text-[10px] text-gray-400"><span>大きさ (スケール)</span><span id="scaleVal">1.00</span></div>
                     <input type="range" id="avatarScale" min="0.2" max="3.0" step="0.05" value="1.0" class="w-full">
                 </div>
                 <p class="text-[10px] text-gray-400">💡 3D画面をドラッグで自由移動 / マウスホイールで拡大縮小できます</p>
@@ -131,8 +131,15 @@
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 <video id="webcam" class="hidden" autoplay playsinline></video>
+                
+                <!-- UIステータスバッジ -->
                 <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20 pointer-events-none">
                     画像または .yj3d ファイルを選択してください
+                </div>
+
+                <!-- 大画面モード解除ヒント（大画面時のみ表示） -->
+                <div id="escHint" class="absolute top-3 right-3 bg-[#010409]/80 px-3 py-1 rounded text-[11px] text-gray-400 border border-[#30363d] z-20 pointer-events-none hidden opacity-60">
+                    [Esc] キーで大画面を解除
                 </div>
             </div>
         </div>
@@ -207,8 +214,11 @@
         redrawPaintCanvas();
     }
 
+    // キーボードイベント (Ctrl+Z / Ctrl+Y / Escキー)
     window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.key === 'Escape') {
+            if (isFullscreenMode) exitFullscreenMode();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             if (e.shiftKey) redo(); else undo();
             e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
@@ -460,7 +470,6 @@
     let eyesMesh = null;
     let mouthMesh = null;
 
-    // 3Dモデルの位置・拡大縮小（トランスフォーム）変数
     let isDraggingAvatar = false;
     let previousMousePosition = { x: 0, y: 0 };
     let avatarPosition = { x: 0, y: -0.4 };
@@ -486,7 +495,6 @@
         }
     };
 
-    // 3Dプレビュー画面でのドラッグ移動 ＆ ホイール拡大縮小
     view3dArea.onmousedown = (e) => {
         if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
         isDraggingAvatar = true;
@@ -499,7 +507,6 @@
         const deltaX = e.clientX - previousMousePosition.x;
         const deltaY = e.clientY - previousMousePosition.y;
 
-        // ビューポートサイズに合わせたワールド座標変換
         const factor = 0.003;
         avatarPosition.x += deltaX * factor;
         avatarPosition.y -= deltaY * factor;
@@ -569,31 +576,57 @@
         document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！ドラッグで位置調整できます";
     };
 
-    // --- 🖥️ 大画面配信モード切替 ---
+    // --- 🖥️ 大画面/全画面配信モード（UI完全非表示 ＆ Escキー解除） ---
     const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+    const mainHeader = document.getElementById('mainHeader');
     const sidePanel = document.getElementById('sidePanel');
     const paintArea = document.getElementById('paintArea');
+    const statusBadge = document.getElementById('statusBadge');
+    const escHint = document.getElementById('escHint');
+    const appBody = document.getElementById('appBody');
     let isFullscreenMode = false;
 
+    function enterFullscreenMode() {
+        isFullscreenMode = true;
+        mainHeader.classList.add('hidden');
+        sidePanel.classList.add('hidden');
+        paintArea.classList.add('hidden');
+        statusBadge.classList.add('hidden');
+        escHint.classList.remove('hidden');
+        appBody.classList.remove('p-4', 'gap-4');
+        appBody.classList.add('p-0');
+
+        updateCanvasLayout();
+    }
+
+    function exitFullscreenMode() {
+        isFullscreenMode = false;
+        mainHeader.classList.remove('hidden');
+        sidePanel.classList.remove('hidden');
+        paintArea.classList.remove('hidden');
+        statusBadge.classList.remove('hidden');
+        escHint.classList.add('hidden');
+        appBody.classList.add('p-4', 'gap-4');
+        appBody.classList.remove('p-0');
+
+        updateCanvasLayout();
+    }
+
     toggleFullscreenBtn.onclick = () => {
-        isFullscreenMode = !isFullscreenMode;
-        if (isFullscreenMode) {
-            sidePanel.classList.add('hidden');
-            paintArea.classList.add('hidden');
-            toggleFullscreenBtn.innerText = "✏️ 編集モードに戻る";
-            toggleFullscreenBtn.className = "bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition";
+        if (!isFullscreenMode) {
+            enterFullscreenMode();
         } else {
-            sidePanel.classList.remove('hidden');
-            paintArea.classList.remove('hidden');
-            toggleFullscreenBtn.innerText = "🖥️ 大画面モード";
-            toggleFullscreenBtn.className = "bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition";
+            exitFullscreenMode();
         }
+    };
+
+    function updateCanvasLayout() {
         setTimeout(() => {
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(container.clientWidth, container.clientHeight);
         }, 50);
-    };
+    }
 
     // --- 3. 画面共有 (背景) ---
     const screenVideo = document.getElementById('screenVideo');
