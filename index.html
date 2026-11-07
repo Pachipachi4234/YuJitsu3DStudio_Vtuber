@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio v4.1 | Comment Toggle Edition</title>
+    <title>YuJitsu Studio v4.2 | Complete Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -28,11 +28,11 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.1 Comment Toggle</span></h1>
-            <p class="text-xs text-gray-400">コメント表示ON/OFF・黒目キョロキョロ・カスタム感情差分対応</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.2 Complete</span></h1>
+            <p class="text-xs text-gray-400">黒目キョロキョロ・カスタム感情差分・画面キャプチャ・AutoStudioテロップ同期</p>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 米（コメント）非表示切替ボタン -->
+            <!-- コメント非表示切替ボタン -->
             <button id="toggleCommentHeaderBtn" class="bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition">
                 💬 コメント：表示中
             </button>
@@ -270,7 +270,7 @@
     </div>
 
 <script>
-    // --- 💬 米（コメント）表示/非表示 切り替えロジック ---
+    // --- 💬 コメント表示/非表示 切り替え ---
     const commentBox = document.getElementById('commentBox');
     const toggleCommentHeaderBtn = document.getElementById('toggleCommentHeaderBtn');
     const toggleCommentSideBtn = document.getElementById('toggleCommentSideBtn');
@@ -298,10 +298,7 @@
 
     // --- コメントサイズ ＆ AutoStudio テロップスタイル ---
     const commentBoxScale = document.getElementById('commentBoxScale');
-
-    commentBoxScale.oninput = (e) => {
-        commentBox.style.transform = `scale(${e.target.value})`;
-    };
+    commentBoxScale.oninput = (e) => { commentBox.style.transform = `scale(${e.target.value})`; };
 
     const textColorInput = document.getElementById('textColor');
     const textSizeInput = document.getElementById('textSize');
@@ -397,9 +394,7 @@
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (ev) => {
-                emoImages[num] = ev.target.result;
-            };
+            reader.onload = (ev) => { emoImages[num] = ev.target.result; };
             reader.readAsDataURL(file);
         };
     });
@@ -843,37 +838,66 @@
         applyAutoStudioTextStyle();
     };
 
-    // --- 🎬 画面録画 ---
+    // --- 🎬 画面録画（自動サポート判定ロジック付き） ---
     let mediaRecorder = null;
     let recordedChunks = [];
     let isRecording = false;
     const recordBtn = document.getElementById('recordBtn');
     const recordBtnText = document.getElementById('recordBtnText');
 
-    recordBtn.onclick = () => {
+    recordBtn.onclick = async () => {
         if (!isRecording) {
-            const stream = view3dArea.captureStream ? view3dArea.captureStream(30) : null;
-            if (!stream) { alert("画面キャプチャ非対応ブラウザです"); return; }
-            recordedChunks = [];
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `yujitsu_studio_rec_${Date.now()}.webm`;
-                a.click();
-            };
-            mediaRecorder.start();
-            isRecording = true;
-            recordBtnText.innerText = "録画停止";
-            recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: "always" },
+                    audio: false
+                });
+
+                const mimeTypes = [
+                    'video/webm;codecs=vp9',
+                    'video/webm;codecs=vp8',
+                    'video/webm',
+                    'video/mp4'
+                ];
+                const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
+
+                recordedChunks = [];
+                mediaRecorder = new MediaRecorder(stream, selectedMime ? { mimeType: selectedMime } : undefined);
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: selectedMime || 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `yujitsu_studio_rec_${Date.now()}.webm`;
+                    a.click();
+                    
+                    isRecording = false;
+                    recordBtnText.innerText = "録画開始";
+                    recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
+                };
+
+                stream.getVideoTracks()[0].onended = () => {
+                    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtnText.innerText = "録画停止";
+                recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
+
+            } catch (err) {
+                console.error("キャプチャエラー:", err);
+                alert("画面共有の選択がキャンセルされたか、権限が許可されていません。");
+            }
         } else {
-            mediaRecorder.stop();
-            isRecording = false;
-            recordBtnText.innerText = "録画開始";
-            recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
         }
     };
 
