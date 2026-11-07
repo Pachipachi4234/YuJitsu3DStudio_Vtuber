@@ -82,6 +82,9 @@
                     <button id="undoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↩️ 戻す (Ctrl+Z)</button>
                     <button id="redoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↪️ やり直し</button>
                 </div>
+                <div class="flex justify-between items-center pt-1">
+                    <button id="clearPaintBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded w-full">全消しリセット</button>
+                </div>
             </div>
 
             <!-- 3D生成 & 保存 -->
@@ -128,6 +131,11 @@
     let currentPart = 'head';
     let isDrawing = false;
     let brushSize = 20;
+
+    // ibisPaint風バケツドラッグ連続塗り用の変数
+    let lastFillX = -1;
+    let lastFillY = -1;
+    const fillMinDistance = 5;
 
     const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), eyes: document.createElement('canvas'), mouth: document.createElement('canvas') };
     const maskCtxs = { head: maskCanvases.head.getContext('2d'), body: maskCanvases.body.getContext('2d'), eyes: maskCanvases.eyes.getContext('2d'), mouth: maskCanvases.mouth.getContext('2d') };
@@ -221,7 +229,6 @@
         if (!file) return;
 
         if (file.name.endsWith('.yj3d')) {
-            // .yj3d ファイルのロード
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const yjData = JSON.parse(ev.target.result);
@@ -229,7 +236,6 @@
             };
             reader.readAsText(file);
         } else {
-            // 通常画像ロード
             const reader = new FileReader();
             reader.onload = (ev) => {
                 loadedImage = new Image();
@@ -252,6 +258,7 @@
         paintCtx.drawImage(loadedImage, 0, 0);
         Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
+    document.getElementById('clearPaintBtn').onclick = () => { saveState(); resetPaintCanvas(); };
 
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
@@ -261,20 +268,50 @@
         };
     }
 
+    // --- ibisPaint風 連続ドラッグ塗りつぶし付きマウスイベント ---
     paintCanvas.onmousedown = (e) => {
         if (!loadedImage) return;
         saveState();
+        isDrawing = true;
+
         const { x, y } = getCanvasCoords(e);
-        if (drawMode === 'fill') floodFill(x, y);
-        else { isDrawing = true; drawBrush(x, y); }
-    };
-    paintCanvas.onmousemove = (e) => {
-        if (isDrawing && (drawMode === 'brush' || drawMode === 'eraser')) {
-            const { x, y } = getCanvasCoords(e);
+
+        if (drawMode === 'fill') {
+            floodFill(x, y);
+            lastFillX = x;
+            lastFillY = y;
+        } else {
             drawBrush(x, y);
         }
     };
-    paintCanvas.onmouseup = () => isDrawing = false;
+
+    paintCanvas.onmousemove = (e) => {
+        if (!isDrawing || !loadedImage) return;
+        const { x, y } = getCanvasCoords(e);
+
+        if (drawMode === 'fill') {
+            const dist = Math.hypot(x - lastFillX, y - lastFillY);
+            if (dist >= fillMinDistance) {
+                floodFill(x, y);
+                lastFillX = x;
+                lastFillY = y;
+            }
+        } else if (drawMode === 'brush' || drawMode === 'eraser') {
+            drawBrush(x, y);
+        }
+    };
+
+    paintCanvas.onmouseup = () => {
+        isDrawing = false;
+        lastFillX = -1;
+        lastFillY = -1;
+    };
+
+    paintCanvas.onmouseleave = () => {
+        isDrawing = false;
+        lastFillX = -1;
+        lastFillY = -1;
+    };
 
     function drawBrush(x, y) {
         const maskCtx = maskCtxs[currentPart];
@@ -395,7 +432,7 @@
                     loadedCount++;
                     if (loadedCount === 4) {
                         redrawPaintCanvas();
-                        document.getElementById('buildModelBtn').click(); // 自動3D構築
+                        document.getElementById('buildModelBtn').click();
                         document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！";
                     }
                 };
@@ -504,49 +541,42 @@
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
 
-faceMesh.onResults((results) => {
-    if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-    const landmarks = results.multiFaceLandmarks[0];
+    faceMesh.onResults((results) => {
+        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+        const landmarks = results.multiFaceLandmarks[0];
 
-    const nose = landmarks[1];
-    const leftEye = landmarks[33];
-    const rightEye = landmarks[263];
+        const nose = landmarks[1];
+        const leftEye = landmarks[33];
+        const rightEye = landmarks[263];
 
-    // 目の位置関係から角度を算出
-    const deltaX = rightEye.x - leftEye.x;
-    const deltaY = rightEye.y - leftEye.y;
+        const deltaX = rightEye.x - leftEye.x;
+        const deltaY = rightEye.y - leftEye.y;
 
-    // 1. 各軸の回転量を計算
-    // Z軸（首のかしげ/前後回転）: 符号を反転させて調整
-    const roll = -Math.atan2(deltaY, deltaX) * 1.2; 
-    // Y軸（左右振り/Yaw）: 鏡合わせの動き
-    const yaw = (0.5 - nose.x) * 1.8;
-    // X軸（上下頷き/Pitch）: X軸反転を元に戻す設定 (+表記)
-    const pitch = (nose.y - 0.5) * 1.5;
+        const roll = -Math.atan2(deltaY, deltaX) * 1.2; 
+        const yaw = (0.5 - nose.x) * 1.8;
+        const pitch = (nose.y - 0.5) * 1.5;
 
-    // 2. ボーンへの回転適用（Pitchのマイナスを外してX軸の向きを復元）
-    if (headBone) {
-        headBone.rotation.set(pitch, yaw, -roll);
-    }
-    if (chestBone) {
-        chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
-    }
+        if (headBone) {
+            headBone.rotation.set(pitch, yaw, -roll);
+        }
+        if (chestBone) {
+            chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
+        }
 
-    // 3. 👁️ まばたき連動
-    const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
-    const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
-    const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
+        const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
+        const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
+        const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
 
-    if (eyesMesh) {
-        eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
-    }
+        if (eyesMesh) {
+            eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+        }
 
-    // 4. 👄 口の開閉連動
-    const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-    if (mouthMesh) {
-        mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
-    }
-});
+        const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
+        if (mouthMesh) {
+            mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+        }
+    });
+
     document.getElementById('startCamBtn').onclick = async () => {
         if (isTracking) return;
         const cameraUtils = new Camera(webcamElement, {
