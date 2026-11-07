@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | Ctrl+Z Undo & Full VTuber Engine</title>
+    <title>YuJitsu Studio | Game ScreenShare & Alpha Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -23,11 +23,21 @@
     <!-- ヘッダー -->
     <header class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Undo(Ctrl+Z) Supported</span></h1>
-            <p class="text-xs text-gray-400">ペン・バケツ・消しゴム ＆ Ctrl+Z対応 フル機能VTuberスタジオ</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">Game ScreenShare Edition</span></h1>
+            <p class="text-xs text-gray-400">透過PNGバグ修正 ＆ ゲーム画面共有背景対応</p>
         </div>
         <div class="flex items-center gap-2">
-            <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-2 rounded font-bold transition">
+            <!-- 背景ゲーム画面共有ボタン -->
+            <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
+                📺 ゲーム画面共有 (背景に敷く)
+            </button>
+            <button id="stopShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
+                ❌ 画面共有解除
+            </button>
+
+            <div class="h-4 w-[1px] bg-[#30363d] mx-1"></div>
+
+            <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-1.5 rounded font-bold transition">
                 📹 Webカメラトラッキング開始
             </button>
         </div>
@@ -68,7 +78,7 @@
                     <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
                 </div>
 
-                <!-- Ctrl+Z Undo / Redo ボタン -->
+                <!-- Ctrl+Z Undo / Redo -->
                 <div class="flex gap-2 pt-2">
                     <button id="undoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↩️ 戻す (Ctrl+Z)</button>
                     <button id="redoBtn" class="flex-1 bg-[#21262d] hover:bg-[#30363d] text-white text-xs py-1.5 rounded font-bold border border-[#30363d]">↪️ やり直し</button>
@@ -87,18 +97,22 @@
         <div class="flex-1 flex gap-4 min-h-0">
             <!-- ペイントエリア -->
             <div class="flex-1 panel relative flex flex-col items-center justify-center p-2 bg-[#010409]">
-                <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント (Ctrl+Zで操作を取り消せます)</div>
+                <div class="text-xs text-gray-400 absolute top-2 left-2 z-10">🎨 マスクペイント</div>
                 <div class="relative max-h-full max-w-full flex items-center justify-center overflow-hidden">
                     <canvas id="paintCanvas" class="max-h-[70vh] max-w-full border border-gray-700 cursor-crosshair"></canvas>
                 </div>
             </div>
 
-            <!-- 3Dビューポート -->
-            <div class="flex-1 panel relative overflow-hidden flex flex-col">
-                <div id="canvasContainer" class="w-full flex-1"></div>
+            <!-- 3Dビューポート（背景にゲーム画面を表示可能） -->
+            <div class="flex-1 panel relative overflow-hidden flex flex-col bg-black">
+                <!-- 画面共有用ビデオ（背景用） -->
+                <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
+                
+                <!-- Three.js Canvas -->
+                <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 <video id="webcam" class="hidden" autoplay playsinline></video>
-                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d]">
-                    画像を選択してパーツを塗ってください
+                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20">
+                    立ち絵画像を選択してください
                 </div>
             </div>
         </div>
@@ -106,47 +120,33 @@
     </div>
 
 <script>
-    // --- 1. ペイント ＆ Ctrl+Z (Undo / Redo) エンジン ---
+    // --- 1. ペイント & 透過PNG処理エンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
 
-    let drawMode = 'brush'; // 'brush', 'fill', 'eraser'
-    let currentPart = 'head'; // 'head', 'body', 'eyes', 'mouth'
+    let drawMode = 'brush';
+    let currentPart = 'head';
     let isDrawing = false;
     let brushSize = 20;
 
-    const maskCanvases = {
-        head: document.createElement('canvas'),
-        body: document.createElement('canvas'),
-        eyes: document.createElement('canvas'),
-        mouth: document.createElement('canvas')
-    };
-    const maskCtxs = {
-        head: maskCanvases.head.getContext('2d'),
-        body: maskCanvases.body.getContext('2d'),
-        eyes: maskCanvases.eyes.getContext('2d'),
-        mouth: maskCanvases.mouth.getContext('2d')
-    };
+    const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), eyes: document.createElement('canvas'), mouth: document.createElement('canvas') };
+    const maskCtxs = { head: maskCanvases.head.getContext('2d'), body: maskCanvases.body.getContext('2d'), eyes: maskCanvases.eyes.getContext('2d'), mouth: maskCanvases.mouth.getContext('2d') };
 
-    // Undo / Redo スタック履歴
     const undoStack = [];
     const redoStack = [];
-    const maxHistory = 20;
 
     function saveState() {
         const state = {};
         Object.keys(maskCanvases).forEach(part => {
             const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width;
-            temp.height = maskCanvases[part].height;
+            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
             temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
             state[part] = temp;
         });
-
         undoStack.push(state);
-        if (undoStack.length > maxHistory) undoStack.shift();
-        redoStack.length = 0; // 新しい操作が入ったらRedo履歴をクリア
+        if (undoStack.length > 20) undoStack.shift();
+        redoStack.length = 0;
     }
 
     function undo() {
@@ -154,15 +154,12 @@
         const currentState = {};
         Object.keys(maskCanvases).forEach(part => {
             const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width;
-            temp.height = maskCanvases[part].height;
+            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
             temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
             currentState[part] = temp;
         });
         redoStack.push(currentState);
-
-        const previousState = undoStack.pop();
-        restoreState(previousState);
+        restoreState(undoStack.pop());
     }
 
     function redo() {
@@ -170,15 +167,12 @@
         const currentState = {};
         Object.keys(maskCanvases).forEach(part => {
             const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width;
-            temp.height = maskCanvases[part].height;
+            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
             temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
             currentState[part] = temp;
         });
         undoStack.push(currentState);
-
-        const nextState = redoStack.pop();
-        restoreState(nextState);
+        restoreState(redoStack.pop());
     }
 
     function restoreState(state) {
@@ -190,30 +184,19 @@
         redrawPaintCanvas();
     }
 
-    // Ctrl+Z / Ctrl+Y のキーボードショートカット対応
     window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-            if (e.shiftKey) {
-                redo();
-            } else {
-                undo();
-            }
+            if (e.shiftKey) redo(); else undo();
             e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-            redo();
-            e.preventDefault();
+            redo(); e.preventDefault();
         }
     });
 
     document.getElementById('undoBtn').onclick = undo;
     document.getElementById('redoBtn').onclick = redo;
 
-    const modeBtns = {
-        brush: document.getElementById('modeBrush'),
-        fill: document.getElementById('modeFill'),
-        eraser: document.getElementById('modeEraser')
-    };
-
+    const modeBtns = { brush: document.getElementById('modeBrush'), fill: document.getElementById('modeFill'), eraser: document.getElementById('modeEraser') };
     Object.keys(modeBtns).forEach(m => {
         modeBtns[m].onclick = () => {
             drawMode = m;
@@ -222,12 +205,7 @@
         };
     });
 
-    const partBtns = { 
-        head: document.getElementById('partHead'), 
-        body: document.getElementById('partBody'), 
-        eyes: document.getElementById('partEyes'),
-        mouth: document.getElementById('partMouth')
-    };
+    const partBtns = { head: document.getElementById('partHead'), body: document.getElementById('partBody'), eyes: document.getElementById('partEyes'), mouth: document.getElementById('partMouth') };
     Object.keys(partBtns).forEach(part => {
         partBtns[part].onclick = () => {
             currentPart = part;
@@ -248,15 +226,10 @@
                 const w = loadedImage.width;
                 const h = loadedImage.height;
 
-                paintCanvas.width = w;
-                paintCanvas.height = h;
-                Object.keys(maskCanvases).forEach(k => {
-                    maskCanvases[k].width = w;
-                    maskCanvases[k].height = h;
-                });
+                paintCanvas.width = w; paintCanvas.height = h;
+                Object.keys(maskCanvases).forEach(k => { maskCanvases[k].width = w; maskCanvases[k].height = h; });
 
-                undoStack.length = 0;
-                redoStack.length = 0;
+                undoStack.length = 0; redoStack.length = 0;
                 resetPaintCanvas();
             };
             loadedImage.src = ev.target.result;
@@ -270,31 +243,22 @@
         paintCtx.drawImage(loadedImage, 0, 0);
         Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
-    document.getElementById('clearPaintBtn').onclick = () => {
-        saveState();
-        resetPaintCanvas();
-    };
+    document.getElementById('clearPaintBtn').onclick = () => { saveState(); resetPaintCanvas(); };
 
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
-        const scaleX = paintCanvas.width / rect.width;
-        const scaleY = paintCanvas.height / rect.height;
         return {
-            x: Math.floor((e.clientX - rect.left) * scaleX),
-            y: Math.floor((e.clientY - rect.top) * scaleY)
+            x: Math.floor((e.clientX - rect.left) * (paintCanvas.width / rect.width)),
+            y: Math.floor((e.clientY - rect.top) * (paintCanvas.height / rect.height))
         };
     }
 
     paintCanvas.onmousedown = (e) => {
         if (!loadedImage) return;
-        saveState(); // 描画開始前に現在の状態を保存
+        saveState();
         const { x, y } = getCanvasCoords(e);
-        if (drawMode === 'fill') {
-            floodFill(x, y);
-        } else {
-            isDrawing = true;
-            drawBrush(x, y);
-        }
+        if (drawMode === 'fill') floodFill(x, y);
+        else { isDrawing = true; drawBrush(x, y); }
     };
     paintCanvas.onmousemove = (e) => {
         if (isDrawing && (drawMode === 'brush' || drawMode === 'eraser')) {
@@ -306,33 +270,16 @@
 
     function drawBrush(x, y) {
         const maskCtx = maskCtxs[currentPart];
-
         if (drawMode === 'eraser') {
             maskCtx.save();
             maskCtx.globalCompositeOperation = 'destination-out';
-            maskCtx.beginPath();
-            maskCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-            maskCtx.fill();
+            maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
             maskCtx.restore();
-
             redrawPaintCanvas();
         } else {
-            const colorMap = { 
-                head: 'rgba(255, 0, 0, 0.5)', 
-                body: 'rgba(0, 100, 255, 0.5)', 
-                eyes: 'rgba(255, 230, 0, 0.6)',
-                mouth: 'rgba(0, 255, 100, 0.6)'
-            };
-            
-            paintCtx.fillStyle = colorMap[currentPart];
-            paintCtx.beginPath();
-            paintCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-            paintCtx.fill();
-
             maskCtx.fillStyle = '#ffffff';
-            maskCtx.beginPath();
-            maskCtx.arc(x, y, brushSize, 0, Math.PI * 2);
-            maskCtx.fill();
+            maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
+            redrawPaintCanvas();
         }
     }
 
@@ -341,17 +288,11 @@
         paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
         paintCtx.drawImage(loadedImage, 0, 0);
 
-        const colorMap = { 
-            head: 'rgba(255, 0, 0, 0.5)', 
-            body: 'rgba(0, 100, 255, 0.5)', 
-            eyes: 'rgba(255, 230, 0, 0.6)',
-            mouth: 'rgba(0, 255, 100, 0.6)'
-        };
+        const colorMap = { head: 'rgba(255, 0, 0, 0.5)', body: 'rgba(0, 100, 255, 0.5)', eyes: 'rgba(255, 230, 0, 0.6)', mouth: 'rgba(0, 255, 100, 0.6)' };
 
         Object.keys(maskCanvases).forEach(part => {
             const overlay = document.createElement('canvas');
-            overlay.width = paintCanvas.width;
-            overlay.height = paintCanvas.height;
+            overlay.width = paintCanvas.width; overlay.height = paintCanvas.height;
             const oCtx = overlay.getContext('2d');
 
             oCtx.fillStyle = colorMap[part];
@@ -364,8 +305,7 @@
     }
 
     function floodFill(startX, startY) {
-        const w = paintCanvas.width;
-        const h = paintCanvas.height;
+        const w = paintCanvas.width; const h = paintCanvas.height;
         const imgData = paintCtx.getImageData(0, 0, w, h);
         const data = imgData.data;
 
@@ -391,11 +331,7 @@
             const pxIdx = idx * 4;
             const r = data[pxIdx], g = data[pxIdx + 1], b = data[pxIdx + 2], a = data[pxIdx + 3];
 
-            if (Math.abs(r - startR) <= colorTolerance &&
-                Math.abs(g - startG) <= colorTolerance &&
-                Math.abs(b - startB) <= colorTolerance &&
-                a > 10) {
-
+            if (Math.abs(r - startR) <= colorTolerance && Math.abs(g - startG) <= colorTolerance && Math.abs(b - startB) <= colorTolerance && a > 10) {
                 maskData[pxIdx] = 255; maskData[pxIdx + 1] = 255; maskData[pxIdx + 2] = 255; maskData[pxIdx + 3] = 255;
 
                 if (x > 0) queue.push([x - 1, y]);
@@ -404,20 +340,20 @@
                 if (y < h - 1) queue.push([x, y + 1]);
             }
         }
-
         maskCtx.putImageData(maskImgData, 0, 0);
         redrawPaintCanvas();
     }
 
-    // --- 2. Three.js 3D構築 ---
+    // --- 2. Three.js 3D構築（アルファ透過バグ修正版） ---
     const container = document.getElementById('canvasContainer');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0d1117);
+    scene.background = null; // 完全透明にしてゲーム画面の上に重ねる
 
     const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(0, 1.2, 2.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
@@ -439,65 +375,79 @@
         const totalH = 2.4;
         const totalW = totalH / aspect;
 
+        // アルファ透過を維持したテクスチャ抽出
+        const createPartMesh = (maskCanvas, zOffset, parentBone) => {
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
+            const ctx = outCanvas.getContext('2d');
+
+            ctx.drawImage(loadedImage, 0, 0);
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(maskCanvas, 0, 0);
+
+            const texture = new THREE.CanvasTexture(outCanvas);
+            texture.needsUpdate = true;
+
+            const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat);
+            mesh.position.set(0, totalH / 2 - (zOffset > 0 ? totalH * 0.5 : 0.5), zOffset);
+            parentBone.add(mesh);
+            return mesh;
+        };
+
         // 胴体
-        const bodyCanvas = extractMaskedTexture(loadedImage, maskCanvases.body);
-        chestBone = new THREE.Group();
-        chestBone.position.set(0, 0.5, 0);
-        const bodyMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(bodyCanvas), transparent: true, side: THREE.DoubleSide })
-        );
-        bodyMesh.position.set(0, totalH / 2 - 0.5, 0);
-        chestBone.add(bodyMesh);
+        chestBone = new THREE.Group(); chestBone.position.set(0, 0.5, 0);
+        createPartMesh(maskCanvases.body, 0, chestBone);
 
         // 頭部
-        const headCanvas = extractMaskedTexture(loadedImage, maskCanvases.head);
-        headBone = new THREE.Group();
-        headBone.position.set(0, totalH * 0.5, 0.01);
-        const headMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(headCanvas), transparent: true, side: THREE.DoubleSide })
-        );
-        headMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0);
-        headBone.add(headMesh);
+        headBone = new THREE.Group(); headBone.position.set(0, totalH * 0.5, 0.01);
+        createPartMesh(maskCanvases.head, 0, headBone);
 
-        // 目
-        const eyesCanvas = extractMaskedTexture(loadedImage, maskCanvases.eyes);
-        eyesMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(eyesCanvas), transparent: true, side: THREE.DoubleSide })
-        );
-        eyesMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0.01);
-        headBone.add(eyesMesh);
-
-        // 口
-        const mouthCanvas = extractMaskedTexture(loadedImage, maskCanvases.mouth);
-        mouthMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(totalW, totalH),
-            new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(mouthCanvas), transparent: true, side: THREE.DoubleSide })
-        );
-        mouthMesh.position.set(0, totalH / 2 - (totalH * 0.5), 0.02);
-        headBone.add(mouthMesh);
+        // 目 & 口
+        eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone);
+        mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
 
         chestBone.add(headBone);
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ Undo機能付き 3Dモデル化が完了しました！";
+        document.getElementById('statusBadge').innerText = "✨ アルファ透過バグ修正完了！キャラが綺麗に切り抜けました";
     };
 
-    function extractMaskedTexture(sourceImg, maskCanvas) {
-        const outCanvas = document.createElement('canvas');
-        outCanvas.width = sourceImg.width;
-        outCanvas.height = sourceImg.height;
-        const ctx = outCanvas.getContext('2d');
-        ctx.drawImage(sourceImg, 0, 0);
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(maskCanvas, 0, 0);
-        return outCanvas;
-    }
+    // --- 3. 画面共有（背景にゲーム画面を流す機能） ---
+    const screenVideo = document.getElementById('screenVideo');
+    const startShareBtn = document.getElementById('startShareBtn');
+    const stopShareBtn = document.getElementById('stopShareBtn');
 
-    // --- 3. Webカメラ トラッキング ---
+    startShareBtn.onclick = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { cursor: "always" },
+                audio: false
+            });
+            screenVideo.srcObject = mediaStream;
+            screenVideo.classList.remove('hidden');
+            startShareBtn.classList.add('hidden');
+            stopShareBtn.classList.remove('hidden');
+
+            mediaStream.getVideoTracks()[0].onended = () => stopScreenShare();
+        } catch (err) {
+            console.log("画面共有キャンセルまたはエラー:", err);
+        }
+    };
+
+    function stopScreenShare() {
+        if (screenVideo.srcObject) {
+            screenVideo.srcObject.getTracks().forEach(track => track.stop());
+            screenVideo.srcObject = null;
+        }
+        screenVideo.classList.add('hidden');
+        startShareBtn.classList.remove('hidden');
+        stopShareBtn.classList.add('hidden');
+    }
+    stopShareBtn.onclick = stopScreenShare;
+
+    // --- 4. Webカメラ トラッキング ---
     let isTracking = false;
     const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
@@ -525,15 +475,10 @@
         const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
         const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
 
-        if (eyesMesh) {
-            eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
-        }
+        if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
 
         const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-        if (mouthMesh) {
-            const mouthScale = Math.max(0.1, Math.min(2.5, mouthDist * 25));
-            mouthMesh.scale.y = mouthScale;
-        }
+        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
     });
 
     document.getElementById('startCamBtn').onclick = async () => {
