@@ -512,28 +512,41 @@ faceMesh.onResults((results) => {
     const leftEye = landmarks[33];
     const rightEye = landmarks[263];
 
+    // 目の位置関係から角度を算出
     const deltaX = rightEye.x - leftEye.x;
     const deltaY = rightEye.y - leftEye.y;
 
-    // Z軸回転（首のかしげ）の向きを反転させて自分の動きと完全同期
+    // 1. 各軸の回転量を計算
+    // Z軸（首のかしげ/前後回転）: 符号を反転させて調整
     const roll = -Math.atan2(deltaY, deltaX) * 1.2; 
+    // Y軸（左右振り/Yaw）: 鏡合わせの動き
     const yaw = (0.5 - nose.x) * 1.8;
+    // X軸（上下頷き/Pitch）: X軸反転を元に戻す設定 (+表記)
     const pitch = (nose.y - 0.5) * 1.5;
 
-    if (headBone) headBone.rotation.set(-pitch, yaw, roll);
-    if (chestBone) chestBone.rotation.set(-pitch * 0.3, yaw * 0.3, roll * 0.3);
+    // 2. ボーンへの回転適用（Pitchのマイナスを外してX軸の向きを復元）
+    if (headBone) {
+        headBone.rotation.set(pitch, yaw, -roll);
+    }
+    if (chestBone) {
+        chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
+    }
 
-    // 目・口のトラッキングはそのまま
+    // 3. 👁️ まばたき連動
     const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
     const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
     const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
 
-    if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+    if (eyesMesh) {
+        eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+    }
 
+    // 4. 👄 口の開閉連動
     const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-    if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+    if (mouthMesh) {
+        mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+    }
 });
-
     document.getElementById('startCamBtn').onclick = async () => {
         if (isTracking) return;
         const cameraUtils = new Camera(webcamElement, {
