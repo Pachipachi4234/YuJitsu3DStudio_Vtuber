@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio | 2.5D VTuber Engine</title>
+    <title>YuJitsu Studio v3.5 | AutoStudio Telop Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -16,6 +16,13 @@
         .btn-part.active { border-color: #58a6ff; ring: 2px; }
         .btn-mode { font-size: 0.75rem; padding: 0.375rem 0.5rem; border-radius: 0.375rem; font-weight: bold; border: 1px solid #30363d; cursor: pointer; text-align: center; }
         .btn-mode.active { border-color: #58a6ff; color: #ffffff; background-color: #21262d; }
+
+        /* AutoStudio テロップスタイル設定用 CSS */
+        .autostudio-text {
+            font-weight: bold;
+            line-height: 1.4;
+            /* JSからダイナミックに2重縁取り & 発光を適用 */
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col p-4 gap-4" id="appBody">
@@ -23,10 +30,15 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">Live Edition</span></h1>
-            <p class="text-xs text-gray-400">ドラッグ配置・サイズ調整 ＆ 大画面配信対応 VTuberスタジオ</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">v3.5 AutoStudio Sync</span></h1>
+            <p class="text-xs text-gray-400">AutoStudio完全準拠テロップ ＆ 感情キー ＆ 録画対応</p>
         </div>
         <div class="flex items-center gap-2">
+            <!-- 録画ボタン -->
+            <button id="recordBtn" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-bold transition flex items-center gap-1">
+                <span>⏺️</span> <span id="recordBtnText">録画開始</span>
+            </button>
+
             <!-- 大画面切替ボタン -->
             <button id="toggleFullscreenBtn" class="bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition">
                 🖥️ 大画面モード
@@ -34,16 +46,16 @@
 
             <!-- 背景ゲーム画面共有ボタン -->
             <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
-                📺 ゲーム画面共有 (背景)
+                📺 ゲーム画面共有
             </button>
             <button id="stopShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
-                ❌ 画面共有解除
+                ❌ 共有解除
             </button>
 
             <div class="h-4 w-[1px] bg-[#30363d] mx-1"></div>
 
             <button id="startCamBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-4 py-1.5 rounded font-bold transition">
-                📹 Webカメラトラッキング開始
+                📹 Webカメラ連動
             </button>
         </div>
     </header>
@@ -57,7 +69,71 @@
             <div class="space-y-1 border-b border-[#30363d] pb-3">
                 <label class="text-xs font-bold text-[#79c0ff]">1. モデル読み込み（画像 or .yj3d）</label>
                 <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
-                <p class="text-[10px] text-gray-400">※過去に保存した .yj3d を選ぶと即座に再現！</p>
+            </div>
+
+            <!-- YouTubeコメント ＆ AutoStudio テロップ装飾設定 -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
+                <label class="text-xs font-bold text-[#79c0ff] flex justify-between items-center">
+                    💬 AutoStudio コメントスタイル
+                    <span class="text-[9px] text-gray-400">添付画像準拠</span>
+                </label>
+                
+                <div class="space-y-1.5">
+                    <div>
+                        <span class="text-[10px] text-gray-400">スタイルプリセット</span>
+                        <select id="telopPreset" class="input-ui text-xs">
+                            <option value="autostudio">AutoStudio 標準 (白×黒×赤縁)</option>
+                            <option value="ytpop">YouTube POP (黄×黒×赤縁)</option>
+                            <option value="cyber">Cyber Neon (青×白×発光)</option>
+                            <option value="minimal">Minimal (白文字×シャドウ)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-gray-400">文字色</span>
+                            <input type="color" id="textColor" value="#ffffff" class="w-full h-6 rounded cursor-pointer bg-transparent">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-400">文字サイズ</span>
+                            <input type="number" id="textSize" value="16" min="10" max="40" class="input-ui text-xs">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-gray-400">内側の縁色</span>
+                            <input type="color" id="innerBorderColor" value="#000000" class="w-full h-6 rounded cursor-pointer bg-transparent">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-400">内側の太さ</span>
+                            <input type="number" id="innerBorderWidth" value="3" min="0" max="10" class="input-ui text-xs">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <span class="text-[10px] text-gray-400">外側の縁色</span>
+                            <input type="color" id="outerBorderColor" value="#ff0000" class="w-full h-6 rounded cursor-pointer bg-transparent">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-400">外側の太さ</span>
+                            <input type="number" id="outerBorderWidth" value="2" min="0" max="10" class="input-ui text-xs">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 表情・感情ショートカットボタン -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3">
+                <label class="text-xs font-bold text-[#79c0ff]">キーボード感情ショートカット (1〜5)</label>
+                <div class="grid grid-cols-5 gap-1">
+                    <button class="emo-btn btn-mode" data-emo="1">💢 1</button>
+                    <button class="emo-btn btn-mode" data-emo="2">💦 2</button>
+                    <button class="emo-btn btn-mode" data-emo="3">✨ 3</button>
+                    <button class="emo-btn btn-mode" data-emo="4">❤️ 4</button>
+                    <button class="emo-btn btn-mode" data-emo="5">❓ 5</button>
+                </div>
             </div>
 
             <!-- 3Dモデル調整 (移動・大きさ) -->
@@ -67,7 +143,6 @@
                     <div class="flex justify-between text-[10px] text-gray-400"><span>大きさ (スケール)</span><span id="scaleVal">1.00</span></div>
                     <input type="range" id="avatarScale" min="0.2" max="3.0" step="0.05" value="1.0" class="w-full">
                 </div>
-                <p class="text-[10px] text-gray-400">💡 3D画面をドラッグで自由移動 / マウスホイールで拡大縮小できます</p>
                 <button id="resetTransformBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-2 py-1 rounded w-full">位置・サイズをリセット</button>
             </div>
 
@@ -109,7 +184,6 @@
                 <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
                     ✨ 塗った部位で3D化！
                 </button>
-                
                 <button id="saveYj3dBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
                     💾 .yj3d ファイルとして保存
                 </button>
@@ -126,10 +200,29 @@
                 </div>
             </div>
 
-            <!-- 3Dビューポート（背景にゲーム画面を表示可能） -->
+            <!-- 3Dビューポート（背景・VTuber・コメント・感情レイヤー合体） -->
             <div id="view3dArea" class="flex-1 panel relative overflow-hidden flex flex-col bg-black cursor-grab active:cursor-grabbing">
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
+                
+                <!-- 感情エフェクトオーバーレイ -->
+                <div id="emotionOverlay" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl pointer-events-none z-20 hidden transition-all duration-200 animate-bounce">
+                    💢
+                </div>
+
+                <!-- ドラッグ移動可能な AutoStudio YouTube コメントボックス -->
+                <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/40 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[320px]">
+                    <div class="text-[10px] text-gray-400 border-b border-gray-700/50 pb-1 mb-2 flex justify-between items-center pointer-events-none">
+                        <span>💬 AutoStudio Live Chat</span>
+                        <span class="text-[8px] bg-red-600 text-white px-1 rounded">LIVE</span>
+                    </div>
+                    <div id="commentList" class="space-y-2 max-h-60 overflow-hidden">
+                        <div class="autostudio-text">配信スタート！わくわく✨</div>
+                        <div class="autostudio-text">この2.5Dエンジンすごすぎるｗｗ</div>
+                        <div class="autostudio-text">AutoStudio風のテロップ神！！</div>
+                    </div>
+                </div>
+
                 <video id="webcam" class="hidden" autoplay playsinline></video>
                 
                 <!-- UIステータスバッジ -->
@@ -137,7 +230,7 @@
                     画像または .yj3d ファイルを選択してください
                 </div>
 
-                <!-- 大画面モード解除ヒント（大画面時のみ表示） -->
+                <!-- 大画面モード解除ヒント -->
                 <div id="escHint" class="absolute top-3 right-3 bg-[#010409]/80 px-3 py-1 rounded text-[11px] text-gray-400 border border-[#30363d] z-20 pointer-events-none hidden opacity-60">
                     [Esc] キーで大画面を解除
                 </div>
@@ -147,6 +240,87 @@
     </div>
 
 <script>
+    // --- 0. AutoStudio テロップスタイル適用エンジン ---
+    const textColorInput = document.getElementById('textColor');
+    const textSizeInput = document.getElementById('textSize');
+    const innerColorInput = document.getElementById('innerBorderColor');
+    const innerWidthInput = document.getElementById('innerBorderWidth');
+    const outerColorInput = document.getElementById('outerBorderColor');
+    const outerWidthInput = document.getElementById('outerBorderWidth');
+    const telopPresetSelect = document.getElementById('telopPreset');
+
+    function applyAutoStudioTextStyle() {
+        const textColor = textColorInput.value;
+        const textSize = textSizeInput.value + 'px';
+        const innerColor = innerColorInput.value;
+        const innerW = parseInt(innerWidthInput.value);
+        const outerColor = outerColorInput.value;
+        const outerW = parseInt(outerWidthInput.value);
+
+        // AutoStudio準拠の2重ドロップシャドウ/テキストシャドウ計算
+        let textShadowStyle = '';
+        if (innerW > 0) {
+            textShadowStyle += `-${innerW}px -${innerW}px 0 ${innerColor}, ${innerW}px -${innerW}px 0 ${innerColor}, -${innerW}px ${innerW}px 0 ${innerColor}, ${innerW}px ${innerW}px 0 ${innerColor}`;
+        }
+        if (outerW > 0) {
+            const totalW = innerW + outerW;
+            const outerShadow = `-${totalW}px -${totalW}px 0 ${outerColor}, ${totalW}px -${totalW}px 0 ${outerColor}, -${totalW}px ${totalW}px 0 ${outerColor}, ${totalW}px ${totalW}px 0 ${outerColor}`;
+            textShadowStyle = textShadowStyle ? `${textShadowStyle}, ${outerShadow}` : outerShadow;
+        }
+
+        const elements = document.querySelectorAll('.autostudio-text');
+        elements.forEach(el => {
+            el.style.color = textColor;
+            el.style.fontSize = textSize;
+            el.style.textShadow = textShadowStyle;
+        });
+    }
+
+    [textColorInput, textSizeInput, innerColorInput, innerWidthInput, outerColorInput, outerWidthInput].forEach(inp => {
+        inp.oninput = applyAutoStudioTextStyle;
+    });
+
+    telopPresetSelect.onchange = (e) => {
+        const mode = e.target.value;
+        if (mode === 'autostudio') {
+            textColorInput.value = "#ffffff";
+            innerColorInput.value = "#000000"; innerWidthInput.value = 3;
+            outerColorInput.value = "#ff0000"; outerWidthInput.value = 2;
+        } else if (mode === 'ytpop') {
+            textColorInput.value = "#ffee00";
+            innerColorInput.value = "#000000"; innerWidthInput.value = 3;
+            outerColorInput.value = "#cc0000"; outerWidthInput.value = 3;
+        } else if (mode === 'cyber') {
+            textColorInput.value = "#00ffff";
+            innerColorInput.value = "#ffffff"; innerWidthInput.value = 2;
+            outerColorInput.value = "#0055ff"; outerWidthInput.value = 4;
+        } else if (mode === 'minimal') {
+            textColorInput.value = "#ffffff";
+            innerColorInput.value = "#000000"; innerWidthInput.value = 1;
+            outerColorInput.value = "#000000"; outerWidthInput.value = 0;
+        }
+        applyAutoStudioTextStyle();
+    };
+
+    // --- コメントボックス ドラッグ移動機能 ---
+    const commentBox = document.getElementById('commentBox');
+    let isDraggingComment = false;
+    let commentOffset = { x: 0, y: 0 };
+
+    commentBox.onmousedown = (e) => {
+        isDraggingComment = true;
+        commentOffset = { x: e.clientX - commentBox.offsetLeft, y: e.clientY - commentBox.offsetTop };
+    };
+
+    document.addEventListener('mousemove', (e) => {
+        if (isDraggingComment) {
+            commentBox.style.left = (e.clientX - commentOffset.x) + 'px';
+            commentBox.style.top = (e.clientY - commentOffset.y) + 'px';
+        }
+    });
+    document.addEventListener('mouseup', () => isDraggingComment = false);
+
+    // --- 1. ペイント & 透過PNG処理エンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
@@ -156,8 +330,7 @@
     let isDrawing = false;
     let brushSize = 20;
 
-    let lastFillX = -1;
-    let lastFillY = -1;
+    let lastFillX = -1, lastFillY = -1;
     const fillMinDistance = 5;
 
     const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), eyes: document.createElement('canvas'), mouth: document.createElement('canvas') };
@@ -214,16 +387,37 @@
         redrawPaintCanvas();
     }
 
-    // キーボードイベント (Ctrl+Z / Ctrl+Y / Escキー)
+    // 感情キーショートカット (1〜5) & システムキー
+    const emotions = { '1': '💢', '2': '💦', '3': '✨', '4': '❤️', '5': '❓' };
+    const emotionOverlay = document.getElementById('emotionOverlay');
+    let currentEmotion = null;
+
+    function toggleEmotion(key) {
+        if (currentEmotion === key) {
+            currentEmotion = null;
+            emotionOverlay.classList.add('hidden');
+        } else {
+            currentEmotion = key;
+            emotionOverlay.innerText = emotions[key];
+            emotionOverlay.classList.remove('hidden');
+        }
+    }
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (isFullscreenMode) exitFullscreenMode();
+        } else if (emotions[e.key]) {
+            toggleEmotion(e.key);
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             if (e.shiftKey) redo(); else undo();
             e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
             redo(); e.preventDefault();
         }
+    });
+
+    document.querySelectorAll('.emo-btn').forEach(btn => {
+        btn.onclick = () => toggleEmotion(btn.dataset.emo);
     });
 
     document.getElementById('undoBtn').onclick = undo;
@@ -258,11 +452,8 @@
             const reader = new FileReader();
             reader.onload = (ev) => {
                 try {
-                    const yjData = JSON.parse(ev.target.result);
-                    loadYj3dData(yjData);
-                } catch (err) {
-                    alert(".yj3d ファイルの解析に失敗しました。");
-                }
+                    loadYj3dData(JSON.parse(ev.target.result));
+                } catch (err) { alert(".yj3d 解析エラー"); }
             };
             reader.readAsText(file);
         } else {
@@ -448,7 +639,7 @@
         img.src = yjData.image;
     }
 
-    // --- 2. Three.js 3D構築 ＆ ドラッグ移動・拡大縮小機能 ---
+    // --- 2. Three.js 3D構築 ---
     const container = document.getElementById('canvasContainer');
     const view3dArea = document.getElementById('view3dArea');
     const scene = new THREE.Scene();
@@ -496,14 +687,13 @@
     };
 
     view3dArea.onmousedown = (e) => {
-        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        if (e.target.closest('#commentBox') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
         isDraggingAvatar = true;
         previousMousePosition = { x: e.clientX, y: e.clientY };
     };
 
     view3dArea.onmousemove = (e) => {
         if (!isDraggingAvatar || !characterGroup) return;
-
         const deltaX = e.clientX - previousMousePosition.x;
         const deltaY = e.clientY - previousMousePosition.y;
 
@@ -519,6 +709,7 @@
     view3dArea.onmouseleave = () => isDraggingAvatar = false;
 
     view3dArea.onwheel = (e) => {
+        if (e.target.closest('#commentBox')) return;
         e.preventDefault();
         const delta = e.deltaY * -0.001;
         avatarScale = Math.min(Math.max(0.2, avatarScale + delta), 3.0);
@@ -573,10 +764,45 @@
         characterGroup.add(chestBone);
         scene.add(characterGroup);
 
-        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！ドラッグで位置調整できます";
+        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！";
+        applyAutoStudioTextStyle();
     };
 
-    // --- 🖥️ 大画面/全画面配信モード（UI完全非表示 ＆ Escキー解除） ---
+    // --- 🎬 ブラウザ内 画面録画機能 ---
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
+    const recordBtn = document.getElementById('recordBtn');
+    const recordBtnText = document.getElementById('recordBtnText');
+
+    recordBtn.onclick = () => {
+        if (!isRecording) {
+            const stream = view3dArea.captureStream ? view3dArea.captureStream(30) : null;
+            if (!stream) { alert("画面キャプチャ非対応ブラウザです"); return; }
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `yujitsu_studio_rec_${Date.now()}.webm`;
+                a.click();
+            };
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtnText.innerText = "録画停止";
+            recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordBtnText.innerText = "録画開始";
+            recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
+        }
+    };
+
+    // --- 🖥️ 大画面配信モード ---
     const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
     const mainHeader = document.getElementById('mainHeader');
     const sidePanel = document.getElementById('sidePanel');
@@ -613,11 +839,8 @@
     }
 
     toggleFullscreenBtn.onclick = () => {
-        if (!isFullscreenMode) {
-            enterFullscreenMode();
-        } else {
-            exitFullscreenMode();
-        }
+        if (!isFullscreenMode) enterFullscreenMode();
+        else exitFullscreenMode();
     };
 
     function updateCanvasLayout() {
@@ -628,7 +851,7 @@
         }, 50);
     }
 
-    // --- 3. 画面共有 (背景) ---
+    // --- 3. 画面共有 ---
     const screenVideo = document.getElementById('screenVideo');
     const startShareBtn = document.getElementById('startShareBtn');
     const stopShareBtn = document.getElementById('stopShareBtn');
@@ -676,25 +899,17 @@
         const yaw = (0.5 - nose.x) * 1.8;
         const pitch = (nose.y - 0.5) * 1.5;
 
-        if (headBone) {
-            headBone.rotation.set(pitch, yaw, -roll);
-        }
-        if (chestBone) {
-            chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
-        }
+        if (headBone) headBone.rotation.set(pitch, yaw, -roll);
+        if (chestBone) chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
 
         const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
         const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
         const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
 
-        if (eyesMesh) {
-            eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
-        }
+        if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
 
         const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-        if (mouthMesh) {
-            mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
-        }
+        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
     });
 
     document.getElementById('startCamBtn').onclick = async () => {
@@ -719,6 +934,8 @@
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
     });
+
+    applyAutoStudioTextStyle();
 </script>
 </body>
 </html>
