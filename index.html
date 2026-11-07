@@ -16,11 +16,7 @@
         .btn-part.active { border-color: #58a6ff; ring: 2px; }
         .btn-mode { font-size: 0.75rem; padding: 0.375rem 0.5rem; border-radius: 0.375rem; font-weight: bold; border: 1px solid #30363d; cursor: pointer; text-align: center; }
         .btn-mode.active { border-color: #58a6ff; color: #ffffff; background-color: #21262d; }
-
-        .autostudio-text {
-            font-weight: bold;
-            line-height: 1.4;
-        }
+        .autostudio-text { font-weight: bold; line-height: 1.4; }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col p-4 gap-4" id="appBody">
@@ -37,6 +33,19 @@
                 💬 コメント：表示中
             </button>
 
+            <!-- 🎙️ Moddel-one 専用画面共有ボタン -->
+            <div class="flex flex-col items-center">
+                <button id="startVoiceShareBtn" class="bg-[#10b981] hover:bg-[#059669] text-white text-xs px-3 py-1.5 rounded font-bold transition">
+                    🎙️ ボイチェン画面共有
+                </button>
+                <button id="stopVoiceShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
+                    ❌ ボイチェン解除
+                </button>
+                <a href="https://pachipachi4234.github.io/moddel-one" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#10b981] hover:underline mt-0.5">
+                    Moddel-oneを開く
+                </a>
+            </div>
+
             <button id="recordBtn" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-bold transition flex items-center gap-1">
                 <span>⏺️</span> <span id="recordBtnText">録画開始</span>
             </button>
@@ -45,12 +54,17 @@
                 🖥️ 大画面モード
             </button>
 
-            <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
-                📺 ゲーム画面共有
-            </button>
-            <button id="stopShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
-                ❌ 共有解除
-            </button>
+            <div class="flex flex-col items-center">
+                <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
+                    📺 ゲーム画面共有
+                </button>
+                <button id="stopShareBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs px-2 py-1.5 rounded font-bold hidden">
+                    ❌ 共有解除
+                </button>
+                <a href="https://pachipachi4234.github.io/moddel-one" target="_blank" rel="noopener noreferrer" class="text-[10px] text-[#8957e5] hover:underline mt-0.5">
+                    Moddel-one
+                </a>
+            </div>
 
             <div class="h-4 w-[1px] bg-[#30363d] mx-1"></div>
 
@@ -145,26 +159,11 @@
                 <p class="text-[10px] text-gray-400">各キーに割り当てる差分画像（PNG等）を選択：</p>
                 
                 <div class="space-y-1 text-xs">
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 font-bold text-yellow-400">1:</span>
-                        <input type="file" id="emoFile1" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 font-bold text-yellow-400">2:</span>
-                        <input type="file" id="emoFile2" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 font-bold text-yellow-400">3:</span>
-                        <input type="file" id="emoFile3" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 font-bold text-yellow-400">4:</span>
-                        <input type="file" id="emoFile4" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-4 font-bold text-yellow-400">5:</span>
-                        <input type="file" id="emoFile5" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
-                    </div>
+                    <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">1:</span><input type="file" id="emoFile1" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
+                    <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">2:</span><input type="file" id="emoFile2" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
+                    <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">3:</span><input type="file" id="emoFile3" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
+                    <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">4:</span><input type="file" id="emoFile4" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
+                    <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">5:</span><input type="file" id="emoFile5" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
                 </div>
             </div>
 
@@ -213,12 +212,8 @@
 
             <!-- 3D生成 & 保存 -->
             <div class="space-y-2">
-                <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
-                    ✨ 塗った部位で3D化！
-                </button>
-                <button id="saveYj3dBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">
-                    💾 .yj3d ファイルとして保存
-                </button>
+                <button id="buildModelBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">✨ 塗った部位で3D化！</button>
+                <button id="saveYj3dBtn" class="bg-[#238636] hover:bg-[#2ea043] text-white text-xs px-3 py-2.5 rounded font-bold transition w-full shadow-lg">💾 .yj3d ファイルとして保存</button>
             </div>
         </div>
 
@@ -237,6 +232,9 @@
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 
+                <!-- 🎙️ 右下1px配置 Moddel-one 音声共有キャプチャ用 Video 要素 -->
+                <video id="moddelVoiceVideo" class="absolute bottom-0 right-0 w-[1px] h-[1px] opacity-0 pointer-events-none z-0" autoplay playsinline></video>
+
                 <!-- 感情差分画像表示エリア -->
                 <div id="emotionImageOverlay" class="absolute inset-0 pointer-events-none z-20 flex items-center justify-center hidden">
                     <img id="emotionImg" class="max-w-full max-h-full object-contain" src="" alt="感情差分">
@@ -256,589 +254,291 @@
                 </div>
 
                 <video id="webcam" class="hidden" autoplay playsinline></video>
-                
-                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20 pointer-events-none">
-                    画像または .yj3d ファイルを選択してください
-                </div>
-
-                <div id="escHint" class="absolute top-3 right-3 bg-[#010409]/80 px-3 py-1 rounded text-[11px] text-gray-400 border border-[#30363d] z-20 pointer-events-none hidden opacity-60">
-                    [Esc] キーで大画面を解除
-                </div>
+                <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20 pointer-events-none">画像または .yj3d ファイルを選択してください</div>
+                <div id="escHint" class="absolute top-3 right-3 bg-[#010409]/80 px-3 py-1 rounded text-[11px] text-gray-400 border border-[#30363d] z-20 pointer-events-none hidden opacity-60">[Esc] キーで大画面を解除</div>
             </div>
         </div>
-
     </div>
 
 <script>
     // --- 💬 コメント表示/非表示 切り替え ---
-    const commentBox = document.getElementById('commentBox');
-    const toggleCommentHeaderBtn = document.getElementById('toggleCommentHeaderBtn');
-    const toggleCommentSideBtn = document.getElementById('toggleCommentSideBtn');
+    const commentBox = document.getElementById('commentBox'), toggleCommentHeaderBtn = document.getElementById('toggleCommentHeaderBtn'), toggleCommentSideBtn = document.getElementById('toggleCommentSideBtn');
     let isCommentVisible = true;
-
     function toggleCommentVisibility() {
         isCommentVisible = !isCommentVisible;
         if (isCommentVisible) {
             commentBox.classList.remove('hidden');
-            toggleCommentHeaderBtn.innerText = "💬 コメント：表示中";
-            toggleCommentHeaderBtn.className = "bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition";
-            toggleCommentSideBtn.innerText = "非表示にする";
-            toggleCommentSideBtn.className = "bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-2 py-0.5 rounded border border-gray-600";
+            toggleCommentHeaderBtn.innerText = "💬 コメント：表示中"; toggleCommentHeaderBtn.className = "bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition";
+            toggleCommentSideBtn.innerText = "非表示にする"; toggleCommentSideBtn.className = "bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-2 py-0.5 rounded border border-gray-600";
         } else {
             commentBox.classList.add('hidden');
-            toggleCommentHeaderBtn.innerText = "💬 コメント：非表示";
-            toggleCommentHeaderBtn.className = "bg-red-900/60 hover:bg-red-800 text-red-200 text-xs px-3 py-1.5 rounded font-bold border border-red-700 transition";
-            toggleCommentSideBtn.innerText = "表示する";
-            toggleCommentSideBtn.className = "bg-[#238636] hover:bg-[#2ea043] text-white text-[10px] px-2 py-0.5 rounded border border-green-600";
+            toggleCommentHeaderBtn.innerText = "💬 コメント：非表示"; toggleCommentHeaderBtn.className = "bg-red-900/60 hover:bg-red-800 text-red-200 text-xs px-3 py-1.5 rounded font-bold border border-red-700 transition";
+            toggleCommentSideBtn.innerText = "表示する"; toggleCommentSideBtn.className = "bg-[#238636] hover:bg-[#2ea043] text-white text-[10px] px-2 py-0.5 rounded border border-green-600";
         }
     }
+    toggleCommentHeaderBtn.onclick = toggleCommentVisibility; toggleCommentSideBtn.onclick = toggleCommentVisibility;
 
-    toggleCommentHeaderBtn.onclick = toggleCommentVisibility;
-    toggleCommentSideBtn.onclick = toggleCommentVisibility;
-
-    // --- コメントサイズ ＆ AutoStudio テロップスタイル ---
-    const commentBoxScale = document.getElementById('commentBoxScale');
-    commentBoxScale.oninput = (e) => { commentBox.style.transform = `scale(${e.target.value})`; };
-
-    const textColorInput = document.getElementById('textColor');
-    const textSizeInput = document.getElementById('textSize');
-    const innerColorInput = document.getElementById('innerBorderColor');
-    const innerWidthInput = document.getElementById('innerBorderWidth');
-    const outerColorInput = document.getElementById('outerBorderColor');
-    const outerWidthInput = document.getElementById('outerBorderWidth');
-    const telopPresetSelect = document.getElementById('telopPreset');
+    document.getElementById('commentBoxScale').oninput = (e) => { commentBox.style.transform = `scale(${e.target.value})`; };
+    const textColorInput = document.getElementById('textColor'), textSizeInput = document.getElementById('textSize'), innerColorInput = document.getElementById('innerBorderColor'), innerWidthInput = document.getElementById('innerBorderWidth'), outerColorInput = document.getElementById('outerBorderColor'), outerWidthInput = document.getElementById('outerBorderWidth'), telopPresetSelect = document.getElementById('telopPreset');
 
     function applyAutoStudioTextStyle() {
-        const textColor = textColorInput.value;
-        const textSize = textSizeInput.value + 'px';
-        const innerColor = innerColorInput.value;
-        const innerW = parseInt(innerWidthInput.value);
-        const outerColor = outerColorInput.value;
-        const outerW = parseInt(outerWidthInput.value);
-
+        const textColor = textColorInput.value, textSize = textSizeInput.value + 'px', innerColor = innerColorInput.value, innerW = parseInt(innerWidthInput.value), outerColor = outerColorInput.value, outerW = parseInt(outerWidthInput.value);
         let textShadowStyle = '';
-        if (innerW > 0) {
-            textShadowStyle += `-${innerW}px -${innerW}px 0 ${innerColor}, ${innerW}px -${innerW}px 0 ${innerColor}, -${innerW}px ${innerW}px 0 ${innerColor}, ${innerW}px ${innerW}px 0 ${innerColor}`;
-        }
+        if (innerW > 0) textShadowStyle += `-${innerW}px -${innerW}px 0 ${innerColor}, ${innerW}px -${innerW}px 0 ${innerColor}, -${innerW}px ${innerW}px 0 ${innerColor}, ${innerW}px ${innerW}px 0 ${innerColor}`;
         if (outerW > 0) {
-            const totalW = innerW + outerW;
-            const outerShadow = `-${totalW}px -${totalW}px 0 ${outerColor}, ${totalW}px -${totalW}px 0 ${outerColor}, -${totalW}px ${totalW}px 0 ${outerColor}, ${totalW}px ${totalW}px 0 ${outerColor}`;
+            const totalW = innerW + outerW, outerShadow = `-${totalW}px -${totalW}px 0 ${outerColor}, ${totalW}px -${totalW}px 0 ${outerColor}, -${totalW}px ${totalW}px 0 ${outerColor}, ${totalW}px ${totalW}px 0 ${outerColor}`;
             textShadowStyle = textShadowStyle ? `${textShadowStyle}, ${outerShadow}` : outerShadow;
         }
-
-        const elements = document.querySelectorAll('.autostudio-text');
-        elements.forEach(el => {
-            el.style.color = textColor;
-            el.style.fontSize = textSize;
-            el.style.textShadow = textShadowStyle;
-        });
+        document.querySelectorAll('.autostudio-text').forEach(el => { el.style.color = textColor; el.style.fontSize = textSize; el.style.textShadow = textShadowStyle; });
     }
-
-    [textColorInput, textSizeInput, innerColorInput, innerWidthInput, outerColorInput, outerWidthInput].forEach(inp => {
-        inp.oninput = applyAutoStudioTextStyle;
-    });
+    [textColorInput, textSizeInput, innerColorInput, innerWidthInput, outerColorInput, outerWidthInput].forEach(inp => inp.oninput = applyAutoStudioTextStyle);
 
     telopPresetSelect.onchange = (e) => {
         const mode = e.target.value;
-        if (mode === 'autostudio') {
-            textColorInput.value = "#ffffff";
-            innerColorInput.value = "#000000"; innerWidthInput.value = 3;
-            outerColorInput.value = "#ff0000"; outerWidthInput.value = 2;
-        } else if (mode === 'ytpop') {
-            textColorInput.value = "#ffee00";
-            innerColorInput.value = "#000000"; innerWidthInput.value = 3;
-            outerColorInput.value = "#cc0000"; outerWidthInput.value = 3;
-        } else if (mode === 'cyber') {
-            textColorInput.value = "#00ffff";
-            innerColorInput.value = "#ffffff"; innerWidthInput.value = 2;
-            outerColorInput.value = "#0055ff"; outerWidthInput.value = 4;
-        } else if (mode === 'minimal') {
-            textColorInput.value = "#ffffff";
-            innerColorInput.value = "#000000"; innerWidthInput.value = 1;
-            outerColorInput.value = "#000000"; outerWidthInput.value = 0;
-        }
+        if (mode === 'autostudio') { textColorInput.value = "#ffffff"; innerColorInput.value = "#000000"; innerWidthInput.value = 3; outerColorInput.value = "#ff0000"; outerWidthInput.value = 2; }
+        else if (mode === 'ytpop') { textColorInput.value = "#ffee00"; innerColorInput.value = "#000000"; innerWidthInput.value = 3; outerColorInput.value = "#cc0000"; outerWidthInput.value = 3; }
+        else if (mode === 'cyber') { textColorInput.value = "#00ffff"; innerColorInput.value = "#ffffff"; innerWidthInput.value = 2; outerColorInput.value = "#0055ff"; outerWidthInput.value = 4; }
+        else if (mode === 'minimal') { textColorInput.value = "#ffffff"; innerColorInput.value = "#000000"; innerWidthInput.value = 1; outerColorInput.value = "#000000"; outerWidthInput.value = 0; }
         applyAutoStudioTextStyle();
     };
 
-    document.getElementById('connectYtBtn').onclick = () => {
-        const url = document.getElementById('ytUrlInput').value;
-        if (!url) { alert("YouTube URL を入力してください。"); return; }
-        alert("YouTubeライブチャットに接続しました！");
-    };
+    document.getElementById('connectYtBtn').onclick = () => { if (!document.getElementById('ytUrlInput').value) { alert("YouTube URL を入力してください。"); return; } alert("YouTubeライブチャットに接続しました！"); };
 
-    // --- コメントボックス ドラッグ移動 ---
-    let isDraggingComment = false;
-    let commentOffset = { x: 0, y: 0 };
-
-    commentBox.onmousedown = (e) => {
-        isDraggingComment = true;
-        commentOffset = { x: e.clientX - commentBox.offsetLeft, y: e.clientY - commentBox.offsetTop };
-    };
-
-    document.addEventListener('mousemove', (e) => {
-        if (isDraggingComment) {
-            commentBox.style.left = (e.clientX - commentOffset.x) + 'px';
-            commentBox.style.top = (e.clientY - commentOffset.y) + 'px';
-        }
-    });
+    let isDraggingComment = false, commentOffset = { x: 0, y: 0 };
+    commentBox.onmousedown = (e) => { isDraggingComment = true; commentOffset = { x: e.clientX - commentBox.offsetLeft, y: e.clientY - commentBox.offsetTop }; };
+    document.addEventListener('mousemove', (e) => { if (isDraggingComment) { commentBox.style.left = (e.clientX - commentOffset.x) + 'px'; commentBox.style.top = (e.clientY - commentOffset.y) + 'px'; } });
     document.addEventListener('mouseup', () => isDraggingComment = false);
 
-    // --- 1〜5キー 感情差分画像設定 ---
     const emoImages = { '1': null, '2': null, '3': null, '4': null, '5': null };
-    const emotionImageOverlay = document.getElementById('emotionImageOverlay');
-    const emotionImg = document.getElementById('emotionImg');
+    const emotionImageOverlay = document.getElementById('emotionImageOverlay'), emotionImg = document.getElementById('emotionImg');
     let currentEmotionKey = null;
-
     [1, 2, 3, 4, 5].forEach(num => {
         document.getElementById(`emoFile${num}`).onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => { emoImages[num] = ev.target.result; };
-            reader.readAsDataURL(file);
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader(); reader.onload = (ev) => { emoImages[num] = ev.target.result; }; reader.readAsDataURL(file);
         };
     });
 
     function toggleEmotionImage(key) {
-        if (currentEmotionKey === key || !emoImages[key]) {
-            currentEmotionKey = null;
-            emotionImageOverlay.classList.add('hidden');
-        } else {
-            currentEmotionKey = key;
-            emotionImg.src = emoImages[key];
-            emotionImageOverlay.classList.remove('hidden');
-        }
+        if (currentEmotionKey === key || !emoImages[key]) { currentEmotionKey = null; emotionImageOverlay.classList.add('hidden'); }
+        else { currentEmotionKey = key; emotionImg.src = emoImages[key]; emotionImageOverlay.classList.remove('hidden'); }
     }
 
-    // --- 1. ペイントエンジン ---
-    const paintCanvas = document.getElementById('paintCanvas');
-    const paintCtx = paintCanvas.getContext('2d');
-    let loadedImage = null;
-
-    let drawMode = 'brush';
-    let currentPart = 'head';
-    let isDrawing = false;
-    let brushSize = 20;
-
-    let lastFillX = -1, lastFillY = -1;
-    const fillMinDistance = 5;
-
+    const paintCanvas = document.getElementById('paintCanvas'), paintCtx = paintCanvas.getContext('2d');
+    let loadedImage = null, drawMode = 'brush', currentPart = 'head', isDrawing = false, brushSize = 20, lastFillX = -1, lastFillY = -1;
     const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), eyes: document.createElement('canvas'), mouth: document.createElement('canvas') };
     const maskCtxs = { head: maskCanvases.head.getContext('2d'), body: maskCanvases.body.getContext('2d'), eyes: maskCanvases.eyes.getContext('2d'), mouth: maskCanvases.mouth.getContext('2d') };
-
-    const undoStack = [];
-    const redoStack = [];
+    const undoStack = [], redoStack = [];
 
     function saveState() {
         const state = {};
         Object.keys(maskCanvases).forEach(part => {
-            const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
-            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
-            state[part] = temp;
+            const temp = document.createElement('canvas'); temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
+            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0); state[part] = temp;
         });
-        undoStack.push(state);
-        if (undoStack.length > 20) undoStack.shift();
-        redoStack.length = 0;
+        undoStack.push(state); if (undoStack.length > 20) undoStack.shift(); redoStack.length = 0;
     }
-
     function undo() {
         if (undoStack.length === 0) return;
-        const currentState = {};
-        Object.keys(maskCanvases).forEach(part => {
-            const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
-            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
-            currentState[part] = temp;
-        });
-        redoStack.push(currentState);
-        restoreState(undoStack.pop());
+        const currentState = {}; Object.keys(maskCanvases).forEach(part => { const temp = document.createElement('canvas'); temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height; temp.getContext('2d').drawImage(maskCanvases[part], 0, 0); currentState[part] = temp; });
+        redoStack.push(currentState); restoreState(undoStack.pop());
     }
-
     function redo() {
         if (redoStack.length === 0) return;
-        const currentState = {};
-        Object.keys(maskCanvases).forEach(part => {
-            const temp = document.createElement('canvas');
-            temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height;
-            temp.getContext('2d').drawImage(maskCanvases[part], 0, 0);
-            currentState[part] = temp;
-        });
-        undoStack.push(currentState);
-        restoreState(redoStack.pop());
+        const currentState = {}; Object.keys(maskCanvases).forEach(part => { const temp = document.createElement('canvas'); temp.width = maskCanvases[part].width; temp.height = maskCanvases[part].height; temp.getContext('2d').drawImage(maskCanvases[part], 0, 0); currentState[part] = temp; });
+        undoStack.push(currentState); restoreState(redoStack.pop());
     }
-
     function restoreState(state) {
-        Object.keys(state).forEach(part => {
-            const ctx = maskCtxs[part];
-            ctx.clearRect(0, 0, maskCanvases[part].width, maskCanvases[part].height);
-            ctx.drawImage(state[part], 0, 0);
-        });
+        Object.keys(state).forEach(part => { maskCtxs[part].clearRect(0, 0, maskCanvases[part].width, maskCanvases[part].height); maskCtxs[part].drawImage(state[part], 0, 0); });
         redrawPaintCanvas();
     }
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (isFullscreenMode) exitFullscreenMode();
-        } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
-            toggleEmotionImage(e.key);
-        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-            if (e.shiftKey) redo(); else undo();
-            e.preventDefault();
-        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-            redo(); e.preventDefault();
-        }
+        if (e.key === 'Escape') { if (isFullscreenMode) exitFullscreenMode(); }
+        else if (['1', '2', '3', '4', '5'].includes(e.key)) toggleEmotionImage(e.key);
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { if (e.shiftKey) redo(); else undo(); e.preventDefault(); }
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { redo(); e.preventDefault(); }
     });
 
-    document.getElementById('undoBtn').onclick = undo;
-    document.getElementById('redoBtn').onclick = redo;
-
+    document.getElementById('undoBtn').onclick = undo; document.getElementById('redoBtn').onclick = redo;
     const modeBtns = { brush: document.getElementById('modeBrush'), fill: document.getElementById('modeFill'), eraser: document.getElementById('modeEraser') };
-    Object.keys(modeBtns).forEach(m => {
-        modeBtns[m].onclick = () => {
-            drawMode = m;
-            Object.values(modeBtns).forEach(b => b.classList.remove('active'));
-            modeBtns[m].classList.add('active');
-        };
-    });
+    Object.keys(modeBtns).forEach(m => modeBtns[m].onclick = () => { drawMode = m; Object.values(modeBtns).forEach(b => b.classList.remove('active')); modeBtns[m].classList.add('active'); });
 
     const partBtns = { head: document.getElementById('partHead'), body: document.getElementById('partBody'), eyes: document.getElementById('partEyes'), mouth: document.getElementById('partMouth') };
-    Object.keys(partBtns).forEach(part => {
-        partBtns[part].onclick = () => {
-            currentPart = part;
-            Object.values(partBtns).forEach(b => b.classList.remove('active', 'ring-2'));
-            partBtns[part].classList.add('active', 'ring-2');
-        };
-    });
-
+    Object.keys(partBtns).forEach(part => partBtns[part].onclick = () => { currentPart = part; Object.values(partBtns).forEach(b => b.classList.remove('active', 'ring-2')); partBtns[part].classList.add('active', 'ring-2'); });
     document.getElementById('brushSize').oninput = (e) => brushSize = parseInt(e.target.value);
 
-    // --- ファイル読み込み ---
     document.getElementById('fileInput').onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
+        const file = e.target.files[0]; if (!file) return;
         if (file.name.endsWith('.yj3d')) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    loadYj3dData(JSON.parse(ev.target.result));
-                } catch (err) { alert(".yj3d 解析エラー"); }
-            };
-            reader.readAsText(file);
+            const reader = new FileReader(); reader.onload = (ev) => { try { loadYj3dData(JSON.parse(ev.target.result)); } catch (err) { alert(".yj3d 解析エラー"); } }; reader.readAsText(file);
         } else {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                loadedImage = new Image();
-                loadedImage.onload = () => {
-                    const w = loadedImage.width, h = loadedImage.height;
-                    paintCanvas.width = w; paintCanvas.height = h;
+            const reader = new FileReader(); reader.onload = (ev) => {
+                loadedImage = new Image(); loadedImage.onload = () => {
+                    const w = loadedImage.width, h = loadedImage.height; paintCanvas.width = w; paintCanvas.height = h;
                     Object.keys(maskCanvases).forEach(k => { maskCanvases[k].width = w; maskCanvases[k].height = h; });
-                    undoStack.length = 0; redoStack.length = 0;
-                    resetPaintCanvas();
-                };
-                loadedImage.src = ev.target.result;
-            };
-            reader.readAsDataURL(file);
+                    undoStack.length = 0; redoStack.length = 0; resetPaintCanvas();
+                }; loadedImage.src = ev.target.result;
+            }; reader.readAsDataURL(file);
         }
     };
 
     function resetPaintCanvas() {
         if (!loadedImage) return;
-        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
-        paintCtx.drawImage(loadedImage, 0, 0);
+        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); paintCtx.drawImage(loadedImage, 0, 0);
         Object.values(maskCtxs).forEach(ctx => ctx.clearRect(0, 0, paintCanvas.width, paintCanvas.height));
     }
     document.getElementById('clearPaintBtn').onclick = () => { saveState(); resetPaintCanvas(); };
 
     function getCanvasCoords(e) {
         const rect = paintCanvas.getBoundingClientRect();
-        return {
-            x: Math.floor((e.clientX - rect.left) * (paintCanvas.width / rect.width)),
-            y: Math.floor((e.clientY - rect.top) * (paintCanvas.height / rect.height))
-        };
+        return { x: Math.floor((e.clientX - rect.left) * (paintCanvas.width / rect.width)), y: Math.floor((e.clientY - rect.top) * (paintCanvas.height / rect.height)) };
     }
 
     paintCanvas.onmousedown = (e) => {
-        if (!loadedImage) return;
-        saveState();
-        isDrawing = true;
-        const { x, y } = getCanvasCoords(e);
-        if (drawMode === 'fill') { floodFill(x, y); lastFillX = x; lastFillY = y; }
-        else { drawBrush(x, y); }
+        if (!loadedImage) return; saveState(); isDrawing = true; const { x, y } = getCanvasCoords(e);
+        if (drawMode === 'fill') { floodFill(x, y); lastFillX = x; lastFillY = y; } else drawBrush(x, y);
     };
 
     paintCanvas.onmousemove = (e) => {
-        if (!isDrawing || !loadedImage) return;
-        const { x, y } = getCanvasCoords(e);
-        if (drawMode === 'fill') {
-            const dist = Math.hypot(x - lastFillX, y - lastFillY);
-            if (dist >= fillMinDistance) { floodFill(x, y); lastFillX = x; lastFillY = y; }
-        } else if (drawMode === 'brush' || drawMode === 'eraser') {
-            drawBrush(x, y);
-        }
+        if (!isDrawing || !loadedImage) return; const { x, y } = getCanvasCoords(e);
+        if (drawMode === 'fill') { if (Math.hypot(x - lastFillX, y - lastFillY) >= 5) { floodFill(x, y); lastFillX = x; lastFillY = y; } }
+        else drawBrush(x, y);
     };
-
     paintCanvas.onmouseup = () => { isDrawing = false; lastFillX = -1; lastFillY = -1; };
     paintCanvas.onmouseleave = () => { isDrawing = false; lastFillX = -1; lastFillY = -1; };
 
     function drawBrush(x, y) {
         const maskCtx = maskCtxs[currentPart];
-        if (drawMode === 'eraser') {
-            maskCtx.save();
-            maskCtx.globalCompositeOperation = 'destination-out';
-            maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
-            maskCtx.restore();
-        } else {
-            maskCtx.fillStyle = '#ffffff';
-            maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill();
-        }
+        if (drawMode === 'eraser') { maskCtx.save(); maskCtx.globalCompositeOperation = 'destination-out'; maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill(); maskCtx.restore(); }
+        else { maskCtx.fillStyle = '#ffffff'; maskCtx.beginPath(); maskCtx.arc(x, y, brushSize, 0, Math.PI * 2); maskCtx.fill(); }
         redrawPaintCanvas();
     }
 
     function redrawPaintCanvas() {
         if (!loadedImage) return;
-        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
-        paintCtx.drawImage(loadedImage, 0, 0);
-
+        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); paintCtx.drawImage(loadedImage, 0, 0);
         const colorMap = { head: 'rgba(255, 0, 0, 0.5)', body: 'rgba(0, 100, 255, 0.5)', eyes: 'rgba(255, 230, 0, 0.6)', mouth: 'rgba(0, 255, 100, 0.6)' };
-
         Object.keys(maskCanvases).forEach(part => {
-            const overlay = document.createElement('canvas');
-            overlay.width = paintCanvas.width; overlay.height = paintCanvas.height;
-            const oCtx = overlay.getContext('2d');
-
-            oCtx.fillStyle = colorMap[part];
-            oCtx.fillRect(0, 0, overlay.width, overlay.height);
-            oCtx.globalCompositeOperation = 'destination-in';
-            oCtx.drawImage(maskCanvases[part], 0, 0);
-
-            paintCtx.drawImage(overlay, 0, 0);
+            const overlay = document.createElement('canvas'); overlay.width = paintCanvas.width; overlay.height = paintCanvas.height;
+            const oCtx = overlay.getContext('2d'); oCtx.fillStyle = colorMap[part]; oCtx.fillRect(0, 0, overlay.width, overlay.height);
+            oCtx.globalCompositeOperation = 'destination-in'; oCtx.drawImage(maskCanvases[part], 0, 0); paintCtx.drawImage(overlay, 0, 0);
         });
     }
 
     function floodFill(startX, startY) {
-        const w = paintCanvas.width; const h = paintCanvas.height;
-        const imgData = paintCtx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-
-        const startIdx = (startY * w + startX) * 4;
-        const startR = data[startIdx], startG = data[startIdx + 1], startB = data[startIdx + 2], startA = data[startIdx + 3];
-
+        const w = paintCanvas.width, h = paintCanvas.height, imgData = paintCtx.getImageData(0, 0, w, h), data = imgData.data;
+        const startIdx = (startY * w + startX) * 4, startR = data[startIdx], startG = data[startIdx + 1], startB = data[startIdx + 2], startA = data[startIdx + 3];
         if (startA === 0) return;
-
-        const maskCtx = maskCtxs[currentPart];
-        const maskImgData = maskCtx.getImageData(0, 0, w, h);
-        const maskData = maskImgData.data;
-
-        const queue = [[startX, startY]];
-        const visited = new Uint8Array(w * h);
-        const colorTolerance = 35;
-
+        const maskCtx = maskCtxs[currentPart], maskImgData = maskCtx.getImageData(0, 0, w, h), maskData = maskImgData.data;
+        const queue = [[startX, startY]], visited = new Uint8Array(w * h);
         while (queue.length > 0) {
-            const [x, y] = queue.pop();
-            const idx = (y * w + x);
-            if (visited[idx]) continue;
-            visited[idx] = 1;
-
-            const pxIdx = idx * 4;
-            const r = data[pxIdx], g = data[pxIdx + 1], b = data[pxIdx + 2], a = data[pxIdx + 3];
-
-            if (Math.abs(r - startR) <= colorTolerance && Math.abs(g - startG) <= colorTolerance && Math.abs(b - startB) <= colorTolerance && a > 10) {
+            const [x, y] = queue.pop(), idx = (y * w + x); if (visited[idx]) continue; visited[idx] = 1;
+            const pxIdx = idx * 4, r = data[pxIdx], g = data[pxIdx + 1], b = data[pxIdx + 2], a = data[pxIdx + 3];
+            if (Math.abs(r - startR) <= 35 && Math.abs(g - startG) <= 35 && Math.abs(b - startB) <= 35 && a > 10) {
                 maskData[pxIdx] = 255; maskData[pxIdx + 1] = 255; maskData[pxIdx + 2] = 255; maskData[pxIdx + 3] = 255;
-
-                if (x > 0) queue.push([x - 1, y]);
-                if (x < w - 1) queue.push([x + 1, y]);
-                if (y > 0) queue.push([x, y - 1]);
-                if (y < h - 1) queue.push([x, y + 1]);
+                if (x > 0) queue.push([x - 1, y]); if (x < w - 1) queue.push([x + 1, y]); if (y > 0) queue.push([x, y - 1]); if (y < h - 1) queue.push([x, y + 1]);
             }
         }
-        maskCtx.putImageData(maskImgData, 0, 0);
-        redrawPaintCanvas();
+        maskCtx.putImageData(maskImgData, 0, 0); redrawPaintCanvas();
     }
 
-    // --- .yj3d 保存 / 復元 ---
     document.getElementById('saveYj3dBtn').onclick = () => {
         if (!loadedImage) return;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = loadedImage.width; tempCanvas.height = loadedImage.height;
+        const tempCanvas = document.createElement('canvas'); tempCanvas.width = loadedImage.width; tempCanvas.height = loadedImage.height;
         tempCanvas.getContext('2d').drawImage(loadedImage, 0, 0);
-
-        const yj3dData = {
-            version: "1.0",
-            image: tempCanvas.toDataURL('image/png'),
-            masks: {
-                head: maskCanvases.head.toDataURL('image/png'),
-                body: maskCanvases.body.toDataURL('image/png'),
-                eyes: maskCanvases.eyes.toDataURL('image/png'),
-                mouth: maskCanvases.mouth.toDataURL('image/png')
-            }
-        };
-
-        const blob = new Blob([JSON.stringify(yj3dData)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `vtuber_model_${Date.now()}.yj3d`;
-        a.click();
+        const yj3dData = { version: "1.0", image: tempCanvas.toDataURL('image/png'), masks: { head: maskCanvases.head.toDataURL('image/png'), body: maskCanvases.body.toDataURL('image/png'), eyes: maskCanvases.eyes.toDataURL('image/png'), mouth: maskCanvases.mouth.toDataURL('image/png') } };
+        const blob = new Blob([JSON.stringify(yj3dData)], { type: 'application/json' }), a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `vtuber_model_${Date.now()}.yj3d`; a.click();
     };
 
     function loadYj3dData(yjData) {
         const img = new Image();
         img.onload = () => {
-            loadedImage = img;
-            const w = img.width, h = img.height;
-            paintCanvas.width = w; paintCanvas.height = h;
-
+            loadedImage = img; const w = img.width, h = img.height; paintCanvas.width = w; paintCanvas.height = h;
             let loadedCount = 0;
             Object.keys(maskCanvases).forEach(part => {
                 maskCanvases[part].width = w; maskCanvases[part].height = h;
                 const mImg = new Image();
                 mImg.onload = () => {
-                    maskCtxs[part].clearRect(0, 0, w, h);
-                    maskCtxs[part].drawImage(mImg, 0, 0);
-                    loadedCount++;
-                    if (loadedCount === 4) {
-                        redrawPaintCanvas();
-                        document.getElementById('buildModelBtn').click();
-                        document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！";
-                    }
-                };
-                mImg.src = yjData.masks[part];
+                    maskCtxs[part].clearRect(0, 0, w, h); maskCtxs[part].drawImage(mImg, 0, 0); loadedCount++;
+                    if (loadedCount === 4) { redrawPaintCanvas(); document.getElementById('buildModelBtn').click(); document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！"; }
+                }; mImg.src = yjData.masks[part];
             });
-        };
-        img.src = yjData.image;
+        }; img.src = yjData.image;
     }
 
-    // --- 2. Three.js 3D構築 ---
-    const container = document.getElementById('canvasContainer');
-    const view3dArea = document.getElementById('view3dArea');
-    const scene = new THREE.Scene();
-    scene.background = null;
-
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 0, 2.5);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setClearColor(0x000000, 0);
-    renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
-
+    const container = document.getElementById('canvasContainer'), view3dArea = document.getElementById('view3dArea');
+    const scene = new THREE.Scene(); scene.background = null;
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000); camera.position.set(0, 0, 2.5);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setClearColor(0x000000, 0); renderer.setSize(container.clientWidth, container.clientHeight); container.appendChild(renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 1.5));
 
-    let characterGroup = null;
-    let headBone = null;
-    let chestBone = null;
-    let eyesMesh = null;
-    let mouthMesh = null;
+    let characterGroup = null, headBone = null, chestBone = null, eyesMesh = null, mouthMesh = null;
+    let isDraggingAvatar = false, previousMousePosition = { x: 0, y: 0 }, avatarPosition = { x: 0, y: -0.4 }, avatarScale = 1.0;
+    const avatarScaleInput = document.getElementById('avatarScale'), scaleValDisplay = document.getElementById('scaleVal');
 
-    let isDraggingAvatar = false;
-    let previousMousePosition = { x: 0, y: 0 };
-    let avatarPosition = { x: 0, y: -0.4 };
-    let avatarScale = 1.0;
+    avatarScaleInput.oninput = (e) => { avatarScale = parseFloat(e.target.value); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); };
+    document.getElementById('resetTransformBtn').onclick = () => { avatarPosition = { x: 0, y: -0.4 }; avatarScale = 1.0; avatarScaleInput.value = 1.0; scaleValDisplay.innerText = "1.00"; if (characterGroup) { characterGroup.position.set(0, -0.4, 0); characterGroup.scale.set(1, 1, 1); } };
 
-    const avatarScaleInput = document.getElementById('avatarScale');
-    const scaleValDisplay = document.getElementById('scaleVal');
-
-    avatarScaleInput.oninput = (e) => {
-        avatarScale = parseFloat(e.target.value);
-        scaleValDisplay.innerText = avatarScale.toFixed(2);
-        if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1);
-    };
-
-    document.getElementById('resetTransformBtn').onclick = () => {
-        avatarPosition = { x: 0, y: -0.4 };
-        avatarScale = 1.0;
-        avatarScaleInput.value = 1.0;
-        scaleValDisplay.innerText = "1.00";
-        if (characterGroup) {
-            characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
-            characterGroup.scale.set(1, 1, 1);
-        }
-    };
-
-    view3dArea.onmousedown = (e) => {
-        if (e.target.closest('#commentBox') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-        isDraggingAvatar = true;
-        previousMousePosition = { x: e.clientX, y: e.clientY };
-    };
-
+    view3dArea.onmousedown = (e) => { if (e.target.closest('#commentBox') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return; isDraggingAvatar = true; previousMousePosition = { x: e.clientX, y: e.clientY }; };
     view3dArea.onmousemove = (e) => {
         if (!isDraggingAvatar || !characterGroup) return;
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
-
-        const factor = 0.003;
-        avatarPosition.x += deltaX * factor;
-        avatarPosition.y -= deltaY * factor;
-
-        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
-        previousMousePosition = { x: e.clientX, y: e.clientY };
+        avatarPosition.x += (e.clientX - previousMousePosition.x) * 0.003; avatarPosition.y -= (e.clientY - previousMousePosition.y) * 0.003;
+        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); previousMousePosition = { x: e.clientX, y: e.clientY };
     };
-
-    view3dArea.onmouseup = () => isDraggingAvatar = false;
-    view3dArea.onmouseleave = () => isDraggingAvatar = false;
-
-    view3dArea.onwheel = (e) => {
-        if (e.target.closest('#commentBox')) return;
-        e.preventDefault();
-        const delta = e.deltaY * -0.001;
-        avatarScale = Math.min(Math.max(0.2, avatarScale + delta), 3.0);
-        avatarScaleInput.value = avatarScale.toFixed(2);
-        scaleValDisplay.innerText = avatarScale.toFixed(2);
-        if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1);
-    };
+    view3dArea.onmouseup = () => isDraggingAvatar = false; view3dArea.onmouseleave = () => isDraggingAvatar = false;
+    view3dArea.onwheel = (e) => { if (e.target.closest('#commentBox')) return; e.preventDefault(); avatarScale = Math.min(Math.max(0.2, avatarScale + (e.deltaY * -0.001)), 3.0); avatarScaleInput.value = avatarScale.toFixed(2); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); };
 
     document.getElementById('buildModelBtn').onclick = () => {
         if (!loadedImage) return;
-
         if (characterGroup) scene.remove(characterGroup);
-        characterGroup = new THREE.Group();
-        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
-        characterGroup.scale.set(avatarScale, avatarScale, 1);
-
-        const aspect = loadedImage.height / loadedImage.width;
-        const totalH = 2.4;
-        const totalW = totalH / aspect;
-
+        characterGroup = new THREE.Group(); characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); characterGroup.scale.set(avatarScale, avatarScale, 1);
+        const aspect = loadedImage.height / loadedImage.width, totalH = 2.4, totalW = totalH / aspect;
         const createPartMesh = (maskCanvas, zOffset, parentBone) => {
-            const outCanvas = document.createElement('canvas');
-            outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
-            const ctx = outCanvas.getContext('2d');
-
-            ctx.drawImage(loadedImage, 0, 0);
-            ctx.globalCompositeOperation = 'destination-in';
-            ctx.drawImage(maskCanvas, 0, 0);
-
-            const texture = new THREE.CanvasTexture(outCanvas);
-            texture.needsUpdate = true;
-
+            const outCanvas = document.createElement('canvas'); outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
+            const ctx = outCanvas.getContext('2d'); ctx.drawImage(loadedImage, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(maskCanvas, 0, 0);
+            const texture = new THREE.CanvasTexture(outCanvas); texture.needsUpdate = true;
             const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat);
-            mesh.position.set(0, 0, zOffset);
-            parentBone.add(mesh);
-            return mesh;
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat); mesh.position.set(0, 0, zOffset); parentBone.add(mesh); return mesh;
         };
-
-        chestBone = new THREE.Group(); 
-        chestBone.position.set(0, 0, 0);
-        createPartMesh(maskCanvases.body, 0, chestBone);
-
-        headBone = new THREE.Group(); 
-        headBone.position.set(0, 0, 0.01);
-        createPartMesh(maskCanvases.head, 0, headBone);
-
-        eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone);
-        mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
-
-        chestBone.add(headBone);
-        characterGroup.add(chestBone);
-        scene.add(characterGroup);
-
-        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！";
-        applyAutoStudioTextStyle();
+        chestBone = new THREE.Group(); chestBone.position.set(0, 0, 0); createPartMesh(maskCanvases.body, 0, chestBone);
+        headBone = new THREE.Group(); headBone.position.set(0, 0, 0.01); createPartMesh(maskCanvases.head, 0, headBone);
+        eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone); mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
+        chestBone.add(headBone); characterGroup.add(chestBone); scene.add(characterGroup);
+        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！"; applyAutoStudioTextStyle();
     };
 
-    // --- 🎬 画面録画（自動サポート判定ロジック付き ＆ 二重カーソル防止修正版） ---
+    // --- 🎙️ Moddel-one 1px埋め込み専用画面共有 ---
+    const moddelVoiceVideo = document.getElementById('moddelVoiceVideo');
+    const startVoiceShareBtn = document.getElementById('startVoiceShareBtn');
+    const stopVoiceShareBtn = document.getElementById('stopVoiceShareBtn');
+    let voiceShareStream = null;
+
+    startVoiceShareBtn.onclick = async () => {
+        try {
+            voiceShareStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            moddelVoiceVideo.srcObject = voiceShareStream;
+            startVoiceShareBtn.classList.add('hidden');
+            stopVoiceShareBtn.classList.remove('hidden');
+
+            voiceShareStream.getVideoTracks()[0].onended = () => stopVoiceShare();
+        } catch (err) {
+            console.error("ボイチェン共有エラー:", err);
+        }
+    };
+
+    function stopVoiceShare() {
+        if (moddelVoiceVideo.srcObject) {
+            moddelVoiceVideo.srcObject.getTracks().forEach(track => track.stop());
+            moddelVoiceVideo.srcObject = null;
+        }
+        startVoiceShareBtn.classList.remove('hidden');
+        stopVoiceShareBtn.classList.add('hidden');
+    }
+    stopVoiceShareBtn.onclick = stopVoiceShare;
+
+    // --- 🎬 MP4優先 画面録画機能 ---
     let mediaRecorder = null;
     let recordedChunks = [];
     let isRecording = false;
@@ -848,33 +548,42 @@
     recordBtn.onclick = async () => {
         if (!isRecording) {
             try {
-                // 🛠️ 2重カーソル防止のため、cursor: "never" に変更
-                const stream = await navigator.mediaDevices.getDisplayMedia({
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
                     video: { cursor: "never" },
-                    audio: false
+                    audio: true
                 });
 
+                const mixedStream = new MediaStream();
+                displayStream.getVideoTracks().forEach(track => mixedStream.addTrack(track));
+                displayStream.getAudioTracks().forEach(track => mixedStream.addTrack(track));
+
+                // 🎙️ 1px埋め込みのModdel-one音声が存在すれば追加
+                if (voiceShareStream && voiceShareStream.getAudioTracks().length > 0) {
+                    voiceShareStream.getAudioTracks().forEach(track => mixedStream.addTrack(track));
+                }
+
+                // 🎬 MP4フォーマットを最優先でサポート判定
                 const mimeTypes = [
+                    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+                    'video/mp4',
                     'video/webm;codecs=vp9',
-                    'video/webm;codecs=vp8',
-                    'video/webm',
-                    'video/mp4'
+                    'video/webm'
                 ];
                 const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
 
                 recordedChunks = [];
-                mediaRecorder = new MediaRecorder(stream, selectedMime ? { mimeType: selectedMime } : undefined);
+                mediaRecorder = new MediaRecorder(mixedStream, selectedMime ? { mimeType: selectedMime } : undefined);
 
                 mediaRecorder.ondataavailable = (e) => {
                     if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
                 mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: selectedMime || 'video/webm' });
-                    const url = URL.createObjectURL(blob);
+                    const ext = selectedMime.includes('mp4') ? 'mp4' : 'webm';
+                    const blob = new Blob(recordedChunks, { type: selectedMime || 'video/mp4' });
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `yujitsu_studio_rec_${Date.now()}.webm`;
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `yujitsu_studio_rec_${Date.now()}.${ext}`;
                     a.click();
                     
                     isRecording = false;
@@ -882,7 +591,7 @@
                     recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
                 };
 
-                stream.getVideoTracks()[0].onended = () => {
+                displayStream.getVideoTracks()[0].onended = () => {
                     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
                 };
 
@@ -892,157 +601,56 @@
                 recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
 
             } catch (err) {
-                console.error("キャプチャエラー:", err);
                 alert("画面共有の選択がキャンセルされたか、権限が許可されていません。");
             }
         } else {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
         }
     };
 
-    // --- 🖥️ 大画面配信モード ---
-    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
-    const mainHeader = document.getElementById('mainHeader');
-    const sidePanel = document.getElementById('sidePanel');
-    const paintArea = document.getElementById('paintArea');
-    const statusBadge = document.getElementById('statusBadge');
-    const escHint = document.getElementById('escHint');
-    const appBody = document.getElementById('appBody');
+    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn'), mainHeader = document.getElementById('mainHeader'), sidePanel = document.getElementById('sidePanel'), paintArea = document.getElementById('paintArea'), statusBadge = document.getElementById('statusBadge'), escHint = document.getElementById('escHint'), appBody = document.getElementById('appBody');
     let isFullscreenMode = false;
-
     function enterFullscreenMode() {
-        isFullscreenMode = true;
-        mainHeader.classList.add('hidden');
-        sidePanel.classList.add('hidden');
-        paintArea.classList.add('hidden');
-        statusBadge.classList.add('hidden');
-        escHint.classList.remove('hidden');
-        appBody.classList.remove('p-4', 'gap-4');
-        appBody.classList.add('p-0');
-
-        updateCanvasLayout();
+        isFullscreenMode = true; mainHeader.classList.add('hidden'); sidePanel.classList.add('hidden'); paintArea.classList.add('hidden'); statusBadge.classList.add('hidden'); escHint.classList.remove('hidden'); appBody.classList.remove('p-4', 'gap-4'); appBody.classList.add('p-0'); updateCanvasLayout();
     }
-
     function exitFullscreenMode() {
-        isFullscreenMode = false;
-        mainHeader.classList.remove('hidden');
-        sidePanel.classList.remove('hidden');
-        paintArea.classList.remove('hidden');
-        statusBadge.classList.remove('hidden');
-        escHint.classList.add('hidden');
-        appBody.classList.add('p-4', 'gap-4');
-        appBody.classList.remove('p-0');
-
-        updateCanvasLayout();
+        isFullscreenMode = false; mainHeader.classList.remove('hidden'); sidePanel.classList.remove('hidden'); paintArea.classList.remove('hidden'); statusBadge.classList.remove('hidden'); escHint.classList.add('hidden'); appBody.classList.add('p-4', 'gap-4'); appBody.classList.remove('p-0'); updateCanvasLayout();
     }
+    toggleFullscreenBtn.onclick = () => { if (!isFullscreenMode) enterFullscreenMode(); else exitFullscreenMode(); };
+    function updateCanvasLayout() { setTimeout(() => { camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); }, 50); }
 
-    toggleFullscreenBtn.onclick = () => {
-        if (!isFullscreenMode) enterFullscreenMode();
-        else exitFullscreenMode();
-    };
-
-    function updateCanvasLayout() {
-        setTimeout(() => {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }, 50);
-    }
-
-    // --- 3. 画面共有（二重カーソル防止修正版） ---
-    const screenVideo = document.getElementById('screenVideo');
-    const startShareBtn = document.getElementById('startShareBtn');
-    const stopShareBtn = document.getElementById('stopShareBtn');
-
+    const screenVideo = document.getElementById('screenVideo'), startShareBtn = document.getElementById('startShareBtn'), stopShareBtn = document.getElementById('stopShareBtn');
     startShareBtn.onclick = async () => {
         try {
-            // 🛠️ 2重カーソル防止のため、cursor: "never" に変更
             const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: false });
-            screenVideo.srcObject = mediaStream;
-            screenVideo.classList.remove('hidden');
-            startShareBtn.classList.add('hidden');
-            stopShareBtn.classList.remove('hidden');
+            screenVideo.srcObject = mediaStream; screenVideo.classList.remove('hidden'); startShareBtn.classList.add('hidden'); stopShareBtn.classList.remove('hidden');
             mediaStream.getVideoTracks()[0].onended = () => stopScreenShare();
         } catch (err) {}
     };
-
-    function stopScreenShare() {
-        if (screenVideo.srcObject) {
-            screenVideo.srcObject.getTracks().forEach(track => track.stop());
-            screenVideo.srcObject = null;
-        }
-        screenVideo.classList.add('hidden');
-        startShareBtn.classList.remove('hidden');
-        stopShareBtn.classList.add('hidden');
-    }
+    function stopScreenShare() { if (screenVideo.srcObject) { screenVideo.srcObject.getTracks().forEach(track => track.stop()); screenVideo.srcObject = null; } screenVideo.classList.add('hidden'); startShareBtn.classList.remove('hidden'); stopShareBtn.classList.add('hidden'); }
     stopShareBtn.onclick = stopScreenShare;
 
-    // --- 4. Webカメラ トラッキング（黒目キョロキョロ機能搭載） ---
-    let isTracking = false;
-    const webcamElement = document.getElementById('webcam');
+    let isTracking = false; const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
-
     faceMesh.onResults((results) => {
         if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
-        const landmarks = results.multiFaceLandmarks[0];
-
-        const nose = landmarks[1];
-        const leftEye = landmarks[33];
-        const rightEye = landmarks[263];
-
-        const deltaX = rightEye.x - leftEye.x;
-        const deltaY = rightEye.y - leftEye.y;
-
-        const roll = -Math.atan2(deltaY, deltaX) * 1.2; 
-        const yaw = (0.5 - nose.x) * 1.8;
-        const pitch = (nose.y - 0.5) * 1.5;
-
-        if (headBone) headBone.rotation.set(pitch, yaw, -roll);
-        if (chestBone) chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
-
-        // 👀 黒目キョロキョロ機能
-        if (eyesMesh && landmarks[468] && landmarks[473]) {
-            const leftIris = landmarks[468];  
-            const rightIris = landmarks[473]; 
-
-            const eyeLeftX = (leftIris.x - leftEye.x) * 5;
-            const eyeLeftY = (leftIris.y - leftEye.y) * 5;
-
-            eyesMesh.position.x = Math.max(-0.05, Math.min(0.05, eyeLeftX));
-            eyesMesh.position.y = Math.max(-0.05, Math.min(0.05, -eyeLeftY));
-        }
-
-        // 👄 口パク連動
-        const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
-        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
+        const landmarks = results.multiFaceLandmarks[0], nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263];
+        const roll = -Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 1.2, yaw = (0.5 - nose.x) * 1.8, pitch = (nose.y - 0.5) * 1.5;
+        if (headBone) headBone.rotation.set(pitch, yaw, -roll); if (chestBone) chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
+        if (eyesMesh && landmarks[468] && landmarks[473]) { eyesMesh.position.x = Math.max(-0.05, Math.min(0.05, (landmarks[468].x - leftEye.x) * 5)); eyesMesh.position.y = Math.max(-0.05, Math.min(0.05, -(landmarks[468].y - leftEye.y) * 5)); }
+        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y) * 25));
     });
 
     document.getElementById('startCamBtn').onclick = async () => {
         if (isTracking) return;
-        const cameraUtils = new Camera(webcamElement, {
-            onFrame: async () => { await faceMesh.send({ image: webcamElement }); },
-            width: 640, height: 480
-        });
-        await cameraUtils.start();
-        isTracking = true;
-        document.getElementById('startCamBtn').innerText = "🟢 トラッキング動作中";
+        const cameraUtils = new Camera(webcamElement, { onFrame: async () => { await faceMesh.send({ image: webcamElement }); }, width: 640, height: 480 });
+        await cameraUtils.start(); isTracking = true; document.getElementById('startCamBtn').innerText = "🟢 トラッキング動作中";
     };
 
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-    }
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
-
-    window.addEventListener('resize', () => {
-        camera.aspect = container.clientWidth / container.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(container.clientWidth, container.clientHeight);
-    });
-
+    window.addEventListener('resize', () => { camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
     applyAutoStudioTextStyle();
 </script>
 </body>
