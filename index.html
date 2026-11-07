@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio v3.5 | AutoStudio Telop Edition</title>
+    <title>YuJitsu Studio v4.0 | Eye Tracking & Custom Emotion Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -17,11 +17,9 @@
         .btn-mode { font-size: 0.75rem; padding: 0.375rem 0.5rem; border-radius: 0.375rem; font-weight: bold; border: 1px solid #30363d; cursor: pointer; text-align: center; }
         .btn-mode.active { border-color: #58a6ff; color: #ffffff; background-color: #21262d; }
 
-        /* AutoStudio テロップスタイル設定用 CSS */
         .autostudio-text {
             font-weight: bold;
             line-height: 1.4;
-            /* JSからダイナミックに2重縁取り & 発光を適用 */
         }
     </style>
 </head>
@@ -30,21 +28,18 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-yellow-400 font-normal">v3.5 AutoStudio Sync</span></h1>
-            <p class="text-xs text-gray-400">AutoStudio完全準拠テロップ ＆ 感情キー ＆ 録画対応</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.0 EyeTracking Edition</span></h1>
+            <p class="text-xs text-gray-400">黒目キョロキョロ・カスタム感情差分・YouTubeコメント対応</p>
         </div>
         <div class="flex items-center gap-2">
-            <!-- 録画ボタン -->
             <button id="recordBtn" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-bold transition flex items-center gap-1">
                 <span>⏺️</span> <span id="recordBtnText">録画開始</span>
             </button>
 
-            <!-- 大画面切替ボタン -->
             <button id="toggleFullscreenBtn" class="bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs px-3 py-1.5 rounded font-bold border border-[#30363d] transition">
                 🖥️ 大画面モード
             </button>
 
-            <!-- 背景ゲーム画面共有ボタン -->
             <button id="startShareBtn" class="bg-[#8957e5] hover:bg-[#9d6cfa] text-white text-xs px-3 py-1.5 rounded font-bold transition">
                 📺 ゲーム画面共有
             </button>
@@ -71,14 +66,24 @@
                 <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
             </div>
 
-            <!-- YouTubeコメント ＆ AutoStudio テロップ装飾設定 -->
+            <!-- YouTube コメント設定 ＆ URL入力 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
-                <label class="text-xs font-bold text-[#79c0ff] flex justify-between items-center">
-                    💬 AutoStudio コメントスタイル
-                    <span class="text-[9px] text-gray-400">添付画像準拠</span>
-                </label>
+                <label class="text-xs font-bold text-[#79c0ff]">💬 YouTube コメント設定</label>
                 
                 <div class="space-y-1.5">
+                    <div>
+                        <span class="text-[10px] text-gray-400">配信URL / 動画ID</span>
+                        <div class="flex gap-1">
+                            <input type="text" id="ytUrlInput" placeholder="https://youtube.com/live/..." class="input-ui text-xs flex-1">
+                            <button id="connectYtBtn" class="bg-[#58a6ff] hover:bg-[#79c0ff] text-black font-bold text-xs px-2 rounded">接続</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] text-gray-400">コメント枠の大きさ</span>
+                        <input type="range" id="commentBoxScale" min="0.5" max="2.0" step="0.05" value="1.0" class="w-full">
+                    </div>
+
                     <div>
                         <span class="text-[10px] text-gray-400">スタイルプリセット</span>
                         <select id="telopPreset" class="input-ui text-xs">
@@ -124,19 +129,36 @@
                 </div>
             </div>
 
-            <!-- 表情・感情ショートカットボタン -->
-            <div class="space-y-2 border-b border-[#30363d] pb-3">
-                <label class="text-xs font-bold text-[#79c0ff]">キーボード感情ショートカット (1〜5)</label>
-                <div class="grid grid-cols-5 gap-1">
-                    <button class="emo-btn btn-mode" data-emo="1">💢 1</button>
-                    <button class="emo-btn btn-mode" data-emo="2">💦 2</button>
-                    <button class="emo-btn btn-mode" data-emo="3">✨ 3</button>
-                    <button class="emo-btn btn-mode" data-emo="4">❤️ 4</button>
-                    <button class="emo-btn btn-mode" data-emo="5">❓ 5</button>
+            <!-- 1〜5キー 感情差分画像設定 -->
+            <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
+                <label class="text-xs font-bold text-[#79c0ff]">🖼️ 1〜5キー 感情差分画像</label>
+                <p class="text-[10px] text-gray-400">各キーに割り当てる差分画像（PNG等）を選択：</p>
+                
+                <div class="space-y-1 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 font-bold text-yellow-400">1:</span>
+                        <input type="file" id="emoFile1" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 font-bold text-yellow-400">2:</span>
+                        <input type="file" id="emoFile2" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 font-bold text-yellow-400">3:</span>
+                        <input type="file" id="emoFile3" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 font-bold text-yellow-400">4:</span>
+                        <input type="file" id="emoFile4" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-4 font-bold text-yellow-400">5:</span>
+                        <input type="file" id="emoFile5" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer">
+                    </div>
                 </div>
             </div>
 
-            <!-- 3Dモデル調整 (移動・大きさ) -->
+            <!-- 3Dモデル調整 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
                 <label class="text-xs font-bold text-[#79c0ff]">📐 VTuber配置・サイズ調整</label>
                 <div>
@@ -166,7 +188,7 @@
                 <div class="grid grid-cols-2 gap-2">
                     <button id="partHead" class="btn-part bg-red-900/40 text-red-300 border-red-500 active">🔴 頭部</button>
                     <button id="partBody" class="btn-part bg-blue-900/40 text-blue-300 border-blue-500">🔵 胴体</button>
-                    <button id="partEyes" class="btn-part bg-yellow-900/40 text-yellow-300 border-yellow-500">🟡 目 (まばたき)</button>
+                    <button id="partEyes" class="btn-part bg-yellow-900/40 text-yellow-300 border-yellow-500">🟡 黒目 (キョロキョロ)</button>
                     <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
                 </div>
 
@@ -200,18 +222,18 @@
                 </div>
             </div>
 
-            <!-- 3Dビューポート（背景・VTuber・コメント・感情レイヤー合体） -->
+            <!-- 3Dビューポート -->
             <div id="view3dArea" class="flex-1 panel relative overflow-hidden flex flex-col bg-black cursor-grab active:cursor-grabbing">
                 <video id="screenVideo" class="absolute inset-0 w-full h-full object-contain pointer-events-none z-0 hidden" autoplay playsinline muted></video>
                 <div id="canvasContainer" class="w-full flex-1 relative z-10"></div>
                 
-                <!-- 感情エフェクトオーバーレイ -->
-                <div id="emotionOverlay" class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-6xl pointer-events-none z-20 hidden transition-all duration-200 animate-bounce">
-                    💢
+                <!-- 感情差分画像表示エリア（1〜5キーで表示） -->
+                <div id="emotionImageOverlay" class="absolute inset-0 pointer-events-none z-20 flex items-center justify-center hidden">
+                    <img id="emotionImg" class="max-w-full max-h-full object-contain" src="" alt="感情差分">
                 </div>
 
-                <!-- ドラッグ移動可能な AutoStudio YouTube コメントボックス -->
-                <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/40 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[320px]">
+                <!-- ドラッグ＆サイズ変更可能な コメントボックス -->
+                <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/40 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[320px] origin-top-left">
                     <div class="text-[10px] text-gray-400 border-b border-gray-700/50 pb-1 mb-2 flex justify-between items-center pointer-events-none">
                         <span>💬 AutoStudio Live Chat</span>
                         <span class="text-[8px] bg-red-600 text-white px-1 rounded">LIVE</span>
@@ -225,12 +247,10 @@
 
                 <video id="webcam" class="hidden" autoplay playsinline></video>
                 
-                <!-- UIステータスバッジ -->
                 <div id="statusBadge" class="absolute top-3 left-3 bg-[#010409]/90 px-3 py-1.5 rounded text-xs text-[#58a6ff] border border-[#30363d] z-20 pointer-events-none">
                     画像または .yj3d ファイルを選択してください
                 </div>
 
-                <!-- 大画面モード解除ヒント -->
                 <div id="escHint" class="absolute top-3 right-3 bg-[#010409]/80 px-3 py-1 rounded text-[11px] text-gray-400 border border-[#30363d] z-20 pointer-events-none hidden opacity-60">
                     [Esc] キーで大画面を解除
                 </div>
@@ -240,7 +260,14 @@
     </div>
 
 <script>
-    // --- 0. AutoStudio テロップスタイル適用エンジン ---
+    // --- 0. コメントサイズ ＆ AutoStudio テロップスタイル ---
+    const commentBox = document.getElementById('commentBox');
+    const commentBoxScale = document.getElementById('commentBoxScale');
+
+    commentBoxScale.oninput = (e) => {
+        commentBox.style.transform = `scale(${e.target.value})`;
+    };
+
     const textColorInput = document.getElementById('textColor');
     const textSizeInput = document.getElementById('textSize');
     const innerColorInput = document.getElementById('innerBorderColor');
@@ -257,7 +284,6 @@
         const outerColor = outerColorInput.value;
         const outerW = parseInt(outerWidthInput.value);
 
-        // AutoStudio準拠の2重ドロップシャドウ/テキストシャドウ計算
         let textShadowStyle = '';
         if (innerW > 0) {
             textShadowStyle += `-${innerW}px -${innerW}px 0 ${innerColor}, ${innerW}px -${innerW}px 0 ${innerColor}, -${innerW}px ${innerW}px 0 ${innerColor}, ${innerW}px ${innerW}px 0 ${innerColor}`;
@@ -302,8 +328,14 @@
         applyAutoStudioTextStyle();
     };
 
-    // --- コメントボックス ドラッグ移動機能 ---
-    const commentBox = document.getElementById('commentBox');
+    // YouTube 接続ボタン（ダミー接続デモ）
+    document.getElementById('connectYtBtn').onclick = () => {
+        const url = document.getElementById('ytUrlInput').value;
+        if (!url) { alert("YouTube URL を入力してください。"); return; }
+        alert("YouTubeライブチャットに接続しました！");
+    };
+
+    // --- コメントボックス ドラッグ移動 ---
     let isDraggingComment = false;
     let commentOffset = { x: 0, y: 0 };
 
@@ -320,7 +352,36 @@
     });
     document.addEventListener('mouseup', () => isDraggingComment = false);
 
-    // --- 1. ペイント & 透過PNG処理エンジン ---
+    // --- 1〜5キー 感情差分画像アップロード ＆ 切り替え ---
+    const emoImages = { '1': null, '2': null, '3': null, '4': null, '5': null };
+    const emotionImageOverlay = document.getElementById('emotionImageOverlay');
+    const emotionImg = document.getElementById('emotionImg');
+    let currentEmotionKey = null;
+
+    [1, 2, 3, 4, 5].forEach(num => {
+        document.getElementById(`emoFile${num}`).onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                emoImages[num] = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+    });
+
+    function toggleEmotionImage(key) {
+        if (currentEmotionKey === key || !emoImages[key]) {
+            currentEmotionKey = null;
+            emotionImageOverlay.classList.add('hidden');
+        } else {
+            currentEmotionKey = key;
+            emotionImg.src = emoImages[key];
+            emotionImageOverlay.classList.remove('hidden');
+        }
+    }
+
+    // --- 1. ペイントエンジン ---
     const paintCanvas = document.getElementById('paintCanvas');
     const paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null;
@@ -387,37 +448,17 @@
         redrawPaintCanvas();
     }
 
-    // 感情キーショートカット (1〜5) & システムキー
-    const emotions = { '1': '💢', '2': '💦', '3': '✨', '4': '❤️', '5': '❓' };
-    const emotionOverlay = document.getElementById('emotionOverlay');
-    let currentEmotion = null;
-
-    function toggleEmotion(key) {
-        if (currentEmotion === key) {
-            currentEmotion = null;
-            emotionOverlay.classList.add('hidden');
-        } else {
-            currentEmotion = key;
-            emotionOverlay.innerText = emotions[key];
-            emotionOverlay.classList.remove('hidden');
-        }
-    }
-
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (isFullscreenMode) exitFullscreenMode();
-        } else if (emotions[e.key]) {
-            toggleEmotion(e.key);
+        } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+            toggleEmotionImage(e.key);
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
             if (e.shiftKey) redo(); else undo();
             e.preventDefault();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
             redo(); e.preventDefault();
         }
-    });
-
-    document.querySelectorAll('.emo-btn').forEach(btn => {
-        btn.onclick = () => toggleEmotion(btn.dataset.emo);
     });
 
     document.getElementById('undoBtn').onclick = undo;
@@ -832,7 +873,7 @@
         paintArea.classList.remove('hidden');
         statusBadge.classList.remove('hidden');
         escHint.classList.add('hidden');
-        appBody.classList.add('p-4', 'gap-4');
+        appBody.classList.add('p-4', 'gap-[#010409]');
         appBody.classList.remove('p-0');
 
         updateCanvasLayout();
@@ -878,7 +919,7 @@
     }
     stopShareBtn.onclick = stopScreenShare;
 
-    // --- 4. Webカメラ トラッキング ---
+    // --- 4. Webカメラ トラッキング（黒目キョロキョロ機能搭載） ---
     let isTracking = false;
     const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
@@ -902,12 +943,21 @@
         if (headBone) headBone.rotation.set(pitch, yaw, -roll);
         if (chestBone) chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
 
-        const leftEyeDist = Math.hypot(landmarks[159].x - landmarks[145].x, landmarks[159].y - landmarks[145].y);
-        const rightEyeDist = Math.hypot(landmarks[386].x - landmarks[374].x, landmarks[386].y - landmarks[374].y);
-        const avgEyeDist = (leftEyeDist + rightEyeDist) / 2;
+        // 👀 黒目キョロキョロ機能（目のランドマーク中心からの黒目ズレ量を検出）
+        if (eyesMesh && landmarks[468] && landmarks[473]) {
+            const leftIris = landmarks[468];  // 左黒目中心
+            const rightIris = landmarks[473]; // 右黒目中心
 
-        if (eyesMesh) eyesMesh.scale.y = avgEyeDist < 0.015 ? 0.05 : 1.0;
+            // 目の輪郭に対する黒目の相対位置
+            const eyeLeftX = (leftIris.x - leftEye.x) * 5;
+            const eyeLeftY = (leftIris.y - leftEye.y) * 5;
 
+            // 黒目パーツの位置をキョロキョロ動かす
+            eyesMesh.position.x = Math.max(-0.05, Math.min(0.05, eyeLeftX));
+            eyesMesh.position.y = Math.max(-0.05, Math.min(0.05, -eyeLeftY));
+        }
+
+        // 👄 口パク連動
         const mouthDist = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
         if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDist * 25));
     });
