@@ -838,7 +838,7 @@
         applyAutoStudioTextStyle();
     };
 
-    // --- 🎬 画面録画（自動サポート判定ロジック付き） ---
+    // --- 🎬 画面録画（自動サポート判定ロジック付き ＆ 二重カーソル防止修正版） ---
     let mediaRecorder = null;
     let recordedChunks = [];
     let isRecording = false;
@@ -848,8 +848,9 @@
     recordBtn.onclick = async () => {
         if (!isRecording) {
             try {
+                // 🛠️ 2重カーソル防止のため、cursor: "never" に変更
                 const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "always" },
+                    video: { cursor: "never" },
                     audio: false
                 });
 
@@ -950,14 +951,15 @@
         }, 50);
     }
 
-    // --- 3. 画面共有 ---
+    // --- 3. 画面共有（二重カーソル防止修正版） ---
     const screenVideo = document.getElementById('screenVideo');
     const startShareBtn = document.getElementById('startShareBtn');
     const stopShareBtn = document.getElementById('stopShareBtn');
 
     startShareBtn.onclick = async () => {
         try {
-            const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "always" }, audio: false });
+            // 🛠️ 2重カーソル防止のため、cursor: "never" に変更
+            const mediaStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: false });
             screenVideo.srcObject = mediaStream;
             screenVideo.classList.remove('hidden');
             startShareBtn.classList.add('hidden');
