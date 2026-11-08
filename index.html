@@ -281,16 +281,49 @@
     document.getElementById('commentBoxScale').oninput = (e) => { commentBox.style.transform = `scale(${e.target.value})`; };
     const textColorInput = document.getElementById('textColor'), textSizeInput = document.getElementById('textSize'), innerColorInput = document.getElementById('innerBorderColor'), innerWidthInput = document.getElementById('innerBorderWidth'), outerColorInput = document.getElementById('outerBorderColor'), outerWidthInput = document.getElementById('outerBorderWidth'), telopPresetSelect = document.getElementById('telopPreset');
 
+    // --- ✨ 修正済み：テロップ縁取り描画ロジック ---
     function applyAutoStudioTextStyle() {
-        const textColor = textColorInput.value, textSize = textSizeInput.value + 'px', innerColor = innerColorInput.value, innerW = parseInt(innerWidthInput.value), outerColor = outerColorInput.value, outerW = parseInt(outerWidthInput.value);
-        let textShadowStyle = '';
-        if (innerW > 0) textShadowStyle += `-${innerW}px -${innerW}px 0 ${innerColor}, ${innerW}px -${innerW}px 0 ${innerColor}, -${innerW}px ${innerW}px 0 ${innerColor}, ${innerW}px ${innerW}px 0 ${innerColor}`;
-        if (outerW > 0) {
-            const totalW = innerW + outerW, outerShadow = `-${totalW}px -${totalW}px 0 ${outerColor}, ${totalW}px -${totalW}px 0 ${outerColor}, -${totalW}px ${totalW}px 0 ${outerColor}, ${totalW}px ${totalW}px 0 ${outerColor}`;
-            textShadowStyle = textShadowStyle ? `${textShadowStyle}, ${outerShadow}` : outerShadow;
+        const textColor = textColorInput.value;
+        const textSize = textSizeInput.value + 'px';
+        const innerColor = innerColorInput.value;
+        const innerW = parseInt(innerWidthInput.value) || 0;
+        const outerColor = outerColorInput.value;
+        const outerW = parseInt(outerWidthInput.value) || 0;
+
+        const shadows = [];
+
+        // 1. 内側の縁取り（指定サイズに応じて周囲に展開）
+        if (innerW > 0) {
+            for (let x = -innerW; x <= innerW; x++) {
+                for (let y = -innerW; y <= innerW; y++) {
+                    if (x !== 0 || y !== 0) {
+                        shadows.push(`${x}px ${y}px 0 ${innerColor}`);
+                    }
+                }
+            }
         }
-        document.querySelectorAll('.autostudio-text').forEach(el => { el.style.color = textColor; el.style.fontSize = textSize; el.style.textShadow = textShadowStyle; });
+
+        // 2. 外側の縁取り（内側＋外側の太さ分を周囲に展開）
+        if (outerW > 0) {
+            const totalW = innerW + outerW;
+            for (let x = -totalW; x <= totalW; x += outerW) {
+                for (let y = -totalW; y <= totalW; y += outerW) {
+                    if (Math.abs(x) > innerW || Math.abs(y) > innerW) {
+                        shadows.push(`${x}px ${y}px 0 ${outerColor}`);
+                    }
+                }
+            }
+        }
+
+        const textShadowStyle = shadows.join(', ');
+
+        document.querySelectorAll('.autostudio-text').forEach(el => {
+            el.style.color = textColor;
+            el.style.fontSize = textSize;
+            el.style.textShadow = textShadowStyle;
+        });
     }
+
     [textColorInput, textSizeInput, innerColorInput, innerWidthInput, outerColorInput, outerWidthInput].forEach(inp => inp.oninput = applyAutoStudioTextStyle);
 
     telopPresetSelect.onchange = (e) => {
