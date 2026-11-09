@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio v4.2 | Complete Edition</title>
+    <title>YuJitsu Studio v4.3 | Complete Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -24,8 +24,8 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.2 Complete</span></h1>
-            <p class="text-xs text-gray-400">黒目キョロキョロ・カスタム感情差分・画面キャプチャ・AutoStudioテロップ同期</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.3 Fix</span></h1>
+            <p class="text-xs text-gray-400">支点位置修正・未描画警告・差分中心合成・画面キャプチャ機能</p>
         </div>
         <div class="flex items-center gap-2">
             <!-- コメント非表示切替ボタン -->
@@ -85,7 +85,7 @@
                 <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
             </div>
 
-            <!-- YouTube コメント設定 ＆ 非表示切替 -->
+            <!-- YouTube コメント設定 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
                 <div class="flex justify-between items-center">
                     <label class="text-xs font-bold text-[#79c0ff]">💬 YouTube コメント設定</label>
@@ -156,7 +156,7 @@
             <!-- 1〜5キー 感情差分画像設定 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
                 <label class="text-xs font-bold text-[#79c0ff]">🖼️ 1〜5キー 感情差分画像</label>
-                <p class="text-[10px] text-gray-400">各キーに割り当てる差分画像（PNG等）を選択：</p>
+                <p class="text-[10px] text-gray-400">1〜5キーで画像中心に重ねて3D化(ON/OFF):</p>
                 
                 <div class="space-y-1 text-xs">
                     <div class="flex items-center gap-2"><span class="w-4 font-bold text-yellow-400">1:</span><input type="file" id="emoFile1" accept="image/*" class="text-[10px] text-gray-400 cursor-pointer"></div>
@@ -191,13 +191,12 @@
                 </div>
             </div>
 
-            <!-- パーツ選択 -->
+            <!-- パーツ選択 (※黒目を削除) -->
             <div class="space-y-2 border-b border-[#30363d] pb-3">
                 <label class="text-xs font-bold text-[#79c0ff]">3. 塗り分ける部位を選択</label>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
                     <button id="partHead" class="btn-part bg-red-900/40 text-red-300 border-red-500 active">🔴 頭部</button>
                     <button id="partBody" class="btn-part bg-blue-900/40 text-blue-300 border-blue-500">🔵 胴体</button>
-                    <button id="partEyes" class="btn-part bg-yellow-900/40 text-yellow-300 border-yellow-500">🟡 黒目 (キョロキョロ)</button>
                     <button id="partMouth" class="btn-part bg-green-900/40 text-green-300 border-green-500">🟢 口 (パクパク)</button>
                 </div>
 
@@ -234,11 +233,6 @@
                 
                 <!-- 🎙️ 右下1px配置 Moddel-one 音声共有キャプチャ用 Video 要素 -->
                 <video id="moddelVoiceVideo" class="absolute bottom-0 right-0 w-[1px] h-[1px] opacity-0 pointer-events-none z-0" autoplay playsinline></video>
-
-                <!-- 感情差分画像表示エリア -->
-                <div id="emotionImageOverlay" class="absolute inset-0 pointer-events-none z-20 flex items-center justify-center hidden">
-                    <img id="emotionImg" class="max-w-full max-h-full object-contain" src="" alt="感情差分">
-                </div>
 
                 <!-- コメントボックス -->
                 <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/40 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[320px] origin-top-left">
@@ -281,7 +275,6 @@
     document.getElementById('commentBoxScale').oninput = (e) => { commentBox.style.transform = `scale(${e.target.value})`; };
     const textColorInput = document.getElementById('textColor'), textSizeInput = document.getElementById('textSize'), innerColorInput = document.getElementById('innerBorderColor'), innerWidthInput = document.getElementById('innerBorderWidth'), outerColorInput = document.getElementById('outerBorderColor'), outerWidthInput = document.getElementById('outerBorderWidth'), telopPresetSelect = document.getElementById('telopPreset');
 
-    // --- ✨ 修正済み：テロップ縁取り描画ロジック ---
     function applyAutoStudioTextStyle() {
         const textColor = textColorInput.value;
         const textSize = textSizeInput.value + 'px';
@@ -291,32 +284,23 @@
         const outerW = parseInt(outerWidthInput.value) || 0;
 
         const shadows = [];
-
-        // 1. 内側の縁取り（指定サイズに応じて周囲に展開）
         if (innerW > 0) {
             for (let x = -innerW; x <= innerW; x++) {
                 for (let y = -innerW; y <= innerW; y++) {
-                    if (x !== 0 || y !== 0) {
-                        shadows.push(`${x}px ${y}px 0 ${innerColor}`);
-                    }
+                    if (x !== 0 || y !== 0) shadows.push(`${x}px ${y}px 0 ${innerColor}`);
                 }
             }
         }
-
-        // 2. 外側の縁取り（内側＋外側の太さ分を周囲に展開）
         if (outerW > 0) {
             const totalW = innerW + outerW;
             for (let x = -totalW; x <= totalW; x += outerW) {
                 for (let y = -totalW; y <= totalW; y += outerW) {
-                    if (Math.abs(x) > innerW || Math.abs(y) > innerW) {
-                        shadows.push(`${x}px ${y}px 0 ${outerColor}`);
-                    }
+                    if (Math.abs(x) > innerW || Math.abs(y) > innerW) shadows.push(`${x}px ${y}px 0 ${outerColor}`);
                 }
             }
         }
 
         const textShadowStyle = shadows.join(', ');
-
         document.querySelectorAll('.autostudio-text').forEach(el => {
             el.style.color = textColor;
             el.style.fontSize = textSize;
@@ -342,25 +326,35 @@
     document.addEventListener('mousemove', (e) => { if (isDraggingComment) { commentBox.style.left = (e.clientX - commentOffset.x) + 'px'; commentBox.style.top = (e.clientY - commentOffset.y) + 'px'; } });
     document.addEventListener('mouseup', () => isDraggingComment = false);
 
-    const emoImages = { '1': null, '2': null, '3': null, '4': null, '5': null };
-    const emotionImageOverlay = document.getElementById('emotionImageOverlay'), emotionImg = document.getElementById('emotionImg');
+    // --- 🖼️ 感情差分（中心重ね合わせ）管理 ---
+    const emoImageObjects = { '1': null, '2': null, '3': null, '4': null, '5': null };
     let currentEmotionKey = null;
+
     [1, 2, 3, 4, 5].forEach(num => {
         document.getElementById(`emoFile${num}`).onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader(); reader.onload = (ev) => { emoImages[num] = ev.target.result; }; reader.readAsDataURL(file);
+            const reader = new FileReader(); reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => { emoImageObjects[num] = img; };
+                img.src = ev.target.result;
+            }; reader.readAsDataURL(file);
         };
     });
 
     function toggleEmotionImage(key) {
-        if (currentEmotionKey === key || !emoImages[key]) { currentEmotionKey = null; emotionImageOverlay.classList.add('hidden'); }
-        else { currentEmotionKey = key; emotionImg.src = emoImages[key]; emotionImageOverlay.classList.remove('hidden'); }
+        if (!emoImageObjects[key]) return;
+        if (currentEmotionKey === key) {
+            currentEmotionKey = null; // OFF
+        } else {
+            currentEmotionKey = key; // ON
+        }
+        build3DModel(); // 感情差分のON/OFFを適用して3D再構築
     }
 
     const paintCanvas = document.getElementById('paintCanvas'), paintCtx = paintCanvas.getContext('2d');
     let loadedImage = null, drawMode = 'brush', currentPart = 'head', isDrawing = false, brushSize = 20, lastFillX = -1, lastFillY = -1;
-    const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), eyes: document.createElement('canvas'), mouth: document.createElement('canvas') };
-    const maskCtxs = { head: maskCanvases.head.getContext('2d'), body: maskCanvases.body.getContext('2d'), eyes: maskCanvases.eyes.getContext('2d'), mouth: maskCanvases.mouth.getContext('2d') };
+    const maskCanvases = { head: document.createElement('canvas'), body: document.createElement('canvas'), mouth: document.createElement('canvas') };
+    const maskCtxs = { head: maskCanvases.head.getContext('2d'), body: maskCanvases.body.getContext('2d'), mouth: maskCanvases.mouth.getContext('2d') };
     const undoStack = [], redoStack = [];
 
     function saveState() {
@@ -397,7 +391,7 @@
     const modeBtns = { brush: document.getElementById('modeBrush'), fill: document.getElementById('modeFill'), eraser: document.getElementById('modeEraser') };
     Object.keys(modeBtns).forEach(m => modeBtns[m].onclick = () => { drawMode = m; Object.values(modeBtns).forEach(b => b.classList.remove('active')); modeBtns[m].classList.add('active'); });
 
-    const partBtns = { head: document.getElementById('partHead'), body: document.getElementById('partBody'), eyes: document.getElementById('partEyes'), mouth: document.getElementById('partMouth') };
+    const partBtns = { head: document.getElementById('partHead'), body: document.getElementById('partBody'), mouth: document.getElementById('partMouth') };
     Object.keys(partBtns).forEach(part => partBtns[part].onclick = () => { currentPart = part; Object.values(partBtns).forEach(b => b.classList.remove('active', 'ring-2')); partBtns[part].classList.add('active', 'ring-2'); });
     document.getElementById('brushSize').oninput = (e) => brushSize = parseInt(e.target.value);
 
@@ -451,7 +445,7 @@
     function redrawPaintCanvas() {
         if (!loadedImage) return;
         paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); paintCtx.drawImage(loadedImage, 0, 0);
-        const colorMap = { head: 'rgba(255, 0, 0, 0.5)', body: 'rgba(0, 100, 255, 0.5)', eyes: 'rgba(255, 230, 0, 0.6)', mouth: 'rgba(0, 255, 100, 0.6)' };
+        const colorMap = { head: 'rgba(255, 0, 0, 0.5)', body: 'rgba(0, 100, 255, 0.5)', mouth: 'rgba(0, 255, 100, 0.6)' };
         Object.keys(maskCanvases).forEach(part => {
             const overlay = document.createElement('canvas'); overlay.width = paintCanvas.width; overlay.height = paintCanvas.height;
             const oCtx = overlay.getContext('2d'); oCtx.fillStyle = colorMap[part]; oCtx.fillRect(0, 0, overlay.width, overlay.height);
@@ -476,11 +470,21 @@
         maskCtx.putImageData(maskImgData, 0, 0); redrawPaintCanvas();
     }
 
+    // マスクに描画があるかどうか確認する関数
+    function isMaskEmpty(maskCanvas) {
+        const ctx = maskCanvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+        for (let i = 3; i < imgData.data.length; i += 4) {
+            if (imgData.data[i] > 0) return false;
+        }
+        return true;
+    }
+
     document.getElementById('saveYj3dBtn').onclick = () => {
         if (!loadedImage) return;
         const tempCanvas = document.createElement('canvas'); tempCanvas.width = loadedImage.width; tempCanvas.height = loadedImage.height;
         tempCanvas.getContext('2d').drawImage(loadedImage, 0, 0);
-        const yj3dData = { version: "1.0", image: tempCanvas.toDataURL('image/png'), masks: { head: maskCanvases.head.toDataURL('image/png'), body: maskCanvases.body.toDataURL('image/png'), eyes: maskCanvases.eyes.toDataURL('image/png'), mouth: maskCanvases.mouth.toDataURL('image/png') } };
+        const yj3dData = { version: "1.0", image: tempCanvas.toDataURL('image/png'), masks: { head: maskCanvases.head.toDataURL('image/png'), body: maskCanvases.body.toDataURL('image/png'), mouth: maskCanvases.mouth.toDataURL('image/png') } };
         const blob = new Blob([JSON.stringify(yj3dData)], { type: 'application/json' }), a = document.createElement('a');
         a.href = URL.createObjectURL(blob); a.download = `vtuber_model_${Date.now()}.yj3d`; a.click();
     };
@@ -490,13 +494,19 @@
         img.onload = () => {
             loadedImage = img; const w = img.width, h = img.height; paintCanvas.width = w; paintCanvas.height = h;
             let loadedCount = 0;
-            Object.keys(maskCanvases).forEach(part => {
+            const parts = ['head', 'body', 'mouth'];
+            parts.forEach(part => {
                 maskCanvases[part].width = w; maskCanvases[part].height = h;
-                const mImg = new Image();
-                mImg.onload = () => {
-                    maskCtxs[part].clearRect(0, 0, w, h); maskCtxs[part].drawImage(mImg, 0, 0); loadedCount++;
-                    if (loadedCount === 4) { redrawPaintCanvas(); document.getElementById('buildModelBtn').click(); document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！"; }
-                }; mImg.src = yjData.masks[part];
+                if (yjData.masks[part]) {
+                    const mImg = new Image();
+                    mImg.onload = () => {
+                        maskCtxs[part].clearRect(0, 0, w, h); maskCtxs[part].drawImage(mImg, 0, 0); loadedCount++;
+                        if (loadedCount === parts.length) { redrawPaintCanvas(); build3DModel(); document.getElementById('statusBadge').innerText = "🎉 .yj3d モデル読み込み成功！3D化完了！"; }
+                    }; mImg.src = yjData.masks[part];
+                } else {
+                    maskCtxs[part].clearRect(0, 0, w, h); loadedCount++;
+                    if (loadedCount === parts.length) { redrawPaintCanvas(); build3DModel(); }
+                }
             });
         }; img.src = yjData.image;
     }
@@ -507,42 +517,125 @@
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setClearColor(0x000000, 0); renderer.setSize(container.clientWidth, container.clientHeight); container.appendChild(renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 1.5));
 
-    let characterGroup = null, headBone = null, chestBone = null, eyesMesh = null, mouthMesh = null;
+    let characterGroup = null, staticGroup = null, headBone = null, chestBone = null, mouthMesh = null;
     let isDraggingAvatar = false, previousMousePosition = { x: 0, y: 0 }, avatarPosition = { x: 0, y: -0.4 }, avatarScale = 1.0;
     const avatarScaleInput = document.getElementById('avatarScale'), scaleValDisplay = document.getElementById('scaleVal');
 
-    avatarScaleInput.oninput = (e) => { avatarScale = parseFloat(e.target.value); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); };
-    document.getElementById('resetTransformBtn').onclick = () => { avatarPosition = { x: 0, y: -0.4 }; avatarScale = 1.0; avatarScaleInput.value = 1.0; scaleValDisplay.innerText = "1.00"; if (characterGroup) { characterGroup.position.set(0, -0.4, 0); characterGroup.scale.set(1, 1, 1); } };
+    avatarScaleInput.oninput = (e) => { avatarScale = parseFloat(e.target.value); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1); };
+    document.getElementById('resetTransformBtn').onclick = () => { avatarPosition = { x: 0, y: -0.4 }; avatarScale = 1.0; avatarScaleInput.value = 1.0; scaleValDisplay.innerText = "1.00"; if (characterGroup) { characterGroup.position.set(0, -0.4, 0); characterGroup.scale.set(1, 1, 1); } if (staticGroup) { staticGroup.position.set(0, -0.4, 0); staticGroup.scale.set(1, 1, 1); } };
 
     view3dArea.onmousedown = (e) => { if (e.target.closest('#commentBox') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return; isDraggingAvatar = true; previousMousePosition = { x: e.clientX, y: e.clientY }; };
     view3dArea.onmousemove = (e) => {
-        if (!isDraggingAvatar || !characterGroup) return;
-        avatarPosition.x += (e.clientX - previousMousePosition.x) * 0.003; avatarPosition.y -= (e.clientY - previousMousePosition.y) * 0.003;
-        characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); previousMousePosition = { x: e.clientX, y: e.clientY };
+        if (!isDraggingAvatar) return;
+        const dx = (e.clientX - previousMousePosition.x) * 0.003;
+        const dy = -(e.clientY - previousMousePosition.y) * 0.003;
+        avatarPosition.x += dx; avatarPosition.y += dy;
+        if (characterGroup) characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
+        if (staticGroup) staticGroup.position.set(avatarPosition.x, avatarPosition.y, 0);
+        previousMousePosition = { x: e.clientX, y: e.clientY };
     };
     view3dArea.onmouseup = () => isDraggingAvatar = false; view3dArea.onmouseleave = () => isDraggingAvatar = false;
-    view3dArea.onwheel = (e) => { if (e.target.closest('#commentBox')) return; e.preventDefault(); avatarScale = Math.min(Math.max(0.2, avatarScale + (e.deltaY * -0.001)), 3.0); avatarScaleInput.value = avatarScale.toFixed(2); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); };
+    view3dArea.onwheel = (e) => { if (e.target.closest('#commentBox')) return; e.preventDefault(); avatarScale = Math.min(Math.max(0.2, avatarScale + (e.deltaY * -0.001)), 3.0); avatarScaleInput.value = avatarScale.toFixed(2); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1); };
 
-    document.getElementById('buildModelBtn').onclick = () => {
+    // --- ✨ 3Dモデル生成メイン処理 ---
+    function build3DModel() {
         if (!loadedImage) return;
+
+        const isHeadEmpty = isMaskEmpty(maskCanvases.head);
+        const isBodyEmpty = isMaskEmpty(maskCanvases.body);
+
+        // ※未描画エラー判定＆警告通知
+        if (isHeadEmpty || isBodyEmpty) {
+            const missing = [];
+            if (isHeadEmpty) missing.push("「頭部」");
+            if (isBodyEmpty) missing.push("「胴体」");
+            document.getElementById('statusBadge').innerText = `⚠️ ${missing.join('・')}が描画されていません！（動かないパーツとして追加されました）`;
+        } else {
+            document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！";
+        }
+
         if (characterGroup) scene.remove(characterGroup);
+        if (staticGroup) scene.remove(staticGroup);
+
         characterGroup = new THREE.Group(); characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); characterGroup.scale.set(avatarScale, avatarScale, 1);
+        staticGroup = new THREE.Group(); staticGroup.position.set(avatarPosition.x, avatarPosition.y, 0); staticGroup.scale.set(avatarScale, avatarScale, 1);
+
+        // 原本画像と表情差分を中心で重ね合わせたテクスチャ用キャンバスを作成
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = loadedImage.width;
+        sourceCanvas.height = loadedImage.height;
+        const sCtx = sourceCanvas.getContext('2d');
+        sCtx.drawImage(loadedImage, 0, 0);
+
+        // 1〜5の表情差分がONなら画像中心に重ねて描画
+        if (currentEmotionKey && emoImageObjects[currentEmotionKey]) {
+            const emoImg = emoImageObjects[currentEmotionKey];
+            const destX = (sourceCanvas.width - emoImg.width) / 2;
+            const destY = (sourceCanvas.height - emoImg.height) / 2;
+            sCtx.drawImage(emoImg, destX, destY);
+        }
+
         const aspect = loadedImage.height / loadedImage.width, totalH = 2.4, totalW = totalH / aspect;
-        const createPartMesh = (maskCanvas, zOffset, parentBone) => {
+
+        const createPartMesh = (maskCanvas, zOffset, parentGroup, offsetY = 0) => {
             const outCanvas = document.createElement('canvas'); outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
-            const ctx = outCanvas.getContext('2d'); ctx.drawImage(loadedImage, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(maskCanvas, 0, 0);
+            const ctx = outCanvas.getContext('2d');
+            ctx.drawImage(sourceCanvas, 0, 0);
+            ctx.globalCompositeOperation = 'destination-in';
+            ctx.drawImage(maskCanvas, 0, 0);
+
             const texture = new THREE.CanvasTexture(outCanvas); texture.needsUpdate = true;
             const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
-            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat); mesh.position.set(0, 0, zOffset); parentBone.add(mesh); return mesh;
-        };
-        chestBone = new THREE.Group(); chestBone.position.set(0, 0, 0); createPartMesh(maskCanvases.body, 0, chestBone);
-        headBone = new THREE.Group(); headBone.position.set(0, 0, 0.01); createPartMesh(maskCanvases.head, 0, headBone);
-        eyesMesh = createPartMesh(maskCanvases.eyes, 0.01, headBone); mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone);
-        chestBone.add(headBone); characterGroup.add(chestBone); scene.add(characterGroup);
-        document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！"; applyAutoStudioTextStyle();
-    };
+            const geom = new THREE.PlaneGeometry(totalW, totalH);
+            // ピボット（支点）の位置調整
+            geom.translate(0, offsetY, 0);
 
-    // --- 🎙️ Moddel-one 1px埋め込み専用画面共有 ---
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.set(0, -offsetY, zOffset);
+            parentGroup.add(mesh);
+            return mesh;
+        };
+
+        // 1. 胴体パート生成
+        if (!isBodyEmpty) {
+            chestBone = new THREE.Group(); chestBone.position.set(0, 0, 0);
+            createPartMesh(maskCanvases.body, 0, chestBone);
+            characterGroup.add(chestBone);
+        } else {
+            // 胴体が描かれていない場合、静的(動かない)パーツとして表示
+            createPartMesh(maskCanvases.body, 0, staticGroup);
+        }
+
+        // 2. 頭部パート生成（支点を「胴体の一番上＝首元」に変更：中心から下方向にオフセット）
+        const headPivotOffsetY = totalH * 0.25; // 首元に支点を設置
+
+        if (!isHeadEmpty) {
+            headBone = new THREE.Group();
+            // 首元の位置にボーンを配置
+            headBone.position.set(0, headPivotOffsetY, 0.01);
+            
+            createPartMesh(maskCanvases.head, 0, headBone, -headPivotOffsetY);
+            mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone, -headPivotOffsetY);
+
+            if (chestBone) {
+                chestBone.add(headBone);
+            } else {
+                characterGroup.add(headBone);
+            }
+        } else {
+            // 頭部が描かれていない場合、静的パーツとして表示
+            createPartMesh(maskCanvases.head, 0, staticGroup);
+            createPartMesh(maskCanvases.mouth, 0.02, staticGroup);
+        }
+
+        scene.add(characterGroup);
+        scene.add(staticGroup);
+        applyAutoStudioTextStyle();
+    }
+
+    document.getElementById('buildModelBtn').onclick = build3DModel;
+
+    // --- 🎙️ Moddel-one 画面共有機能 ---
     const moddelVoiceVideo = document.getElementById('moddelVoiceVideo');
     const startVoiceShareBtn = document.getElementById('startVoiceShareBtn');
     const stopVoiceShareBtn = document.getElementById('stopVoiceShareBtn');
@@ -554,7 +647,6 @@
             moddelVoiceVideo.srcObject = voiceShareStream;
             startVoiceShareBtn.classList.add('hidden');
             stopVoiceShareBtn.classList.remove('hidden');
-
             voiceShareStream.getVideoTracks()[0].onended = () => stopVoiceShare();
         } catch (err) {
             console.error("ボイチェン共有エラー:", err);
@@ -571,71 +663,38 @@
     }
     stopVoiceShareBtn.onclick = stopVoiceShare;
 
-    // --- 🎬 MP4優先 画面録画機能 ---
-    let mediaRecorder = null;
-    let recordedChunks = [];
-    let isRecording = false;
-    const recordBtn = document.getElementById('recordBtn');
-    const recordBtnText = document.getElementById('recordBtnText');
+    // --- 🎬 画面録画機能 ---
+    let mediaRecorder = null, recordedChunks = [], isRecording = false;
+    const recordBtn = document.getElementById('recordBtn'), recordBtnText = document.getElementById('recordBtnText');
 
     recordBtn.onclick = async () => {
         if (!isRecording) {
             try {
-                const displayStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { cursor: "never" },
-                    audio: true
-                });
-
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: "never" }, audio: true });
                 const mixedStream = new MediaStream();
                 displayStream.getVideoTracks().forEach(track => mixedStream.addTrack(track));
                 displayStream.getAudioTracks().forEach(track => mixedStream.addTrack(track));
 
-                // 🎙️ 1px埋め込みのModdel-one音声が存在すれば追加
                 if (voiceShareStream && voiceShareStream.getAudioTracks().length > 0) {
                     voiceShareStream.getAudioTracks().forEach(track => mixedStream.addTrack(track));
                 }
 
-                // 🎬 MP4フォーマットを最優先でサポート判定
-                const mimeTypes = [
-                    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-                    'video/mp4',
-                    'video/webm;codecs=vp9',
-                    'video/webm'
-                ];
+                const mimeTypes = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
                 const selectedMime = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
 
                 recordedChunks = [];
                 mediaRecorder = new MediaRecorder(mixedStream, selectedMime ? { mimeType: selectedMime } : undefined);
-
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) recordedChunks.push(e.data);
-                };
-
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
                     const ext = selectedMime.includes('mp4') ? 'mp4' : 'webm';
                     const blob = new Blob(recordedChunks, { type: selectedMime || 'video/mp4' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `yujitsu_studio_rec_${Date.now()}.${ext}`;
-                    a.click();
-                    
-                    isRecording = false;
-                    recordBtnText.innerText = "録画開始";
-                    recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                    a.download = `yujitsu_studio_rec_${Date.now()}.${ext}`; a.click();
+                    isRecording = false; recordBtnText.innerText = "録画開始"; recordBtn.classList.replace('bg-gray-700', 'bg-red-600');
                 };
-
-                displayStream.getVideoTracks()[0].onended = () => {
-                    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-                };
-
-                mediaRecorder.start();
-                isRecording = true;
-                recordBtnText.innerText = "録画停止";
-                recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
-
-            } catch (err) {
-                alert("画面共有の選択がキャンセルされたか、権限が許可されていません。");
-            }
+                displayStream.getVideoTracks()[0].onended = () => { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); };
+                mediaRecorder.start(); isRecording = true; recordBtnText.innerText = "録画停止"; recordBtn.classList.replace('bg-red-600', 'bg-gray-700');
+            } catch (err) { alert("画面共有の選択がキャンセルされたか、権限が許可されていません。"); }
         } else {
             if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
         }
@@ -663,6 +722,7 @@
     function stopScreenShare() { if (screenVideo.srcObject) { screenVideo.srcObject.getTracks().forEach(track => track.stop()); screenVideo.srcObject = null; } screenVideo.classList.add('hidden'); startShareBtn.classList.remove('hidden'); stopShareBtn.classList.add('hidden'); }
     stopShareBtn.onclick = stopScreenShare;
 
+    // --- 📹 Webカメラ FaceMesh トラッキング ---
     let isTracking = false; const webcamElement = document.getElementById('webcam');
     const faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
     faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true });
@@ -670,9 +730,16 @@
         if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
         const landmarks = results.multiFaceLandmarks[0], nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263];
         const roll = -Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 1.2, yaw = (0.5 - nose.x) * 1.8, pitch = (nose.y - 0.5) * 1.5;
-        if (headBone) headBone.rotation.set(pitch, yaw, -roll); if (chestBone) chestBone.rotation.set(pitch * 0.3, yaw * 0.3, -roll * 0.3);
-        if (eyesMesh && landmarks[468] && landmarks[473]) { eyesMesh.position.x = Math.max(-0.05, Math.min(0.05, (landmarks[468].x - leftEye.x) * 5)); eyesMesh.position.y = Math.max(-0.05, Math.min(0.05, -(landmarks[468].y - leftEye.y) * 5)); }
-        if (mouthMesh) mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y) * 25));
+        
+        // 首元を軸にした回転を適用
+        if (headBone) headBone.rotation.set(pitch, yaw, -roll);
+        if (chestBone) chestBone.rotation.set(pitch * 0.2, yaw * 0.2, -roll * 0.2);
+
+        // 口パクの開閉アニメーション
+        if (mouthMesh) {
+            const mouthDistance = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
+            mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDistance * 25));
+        }
     });
 
     document.getElementById('startCamBtn').onclick = async () => {
