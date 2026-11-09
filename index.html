@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio v4.4 | Final Fix</title>
+    <title>YuJitsu Studio v4.5 | Complete Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -24,8 +24,8 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.4 Final Fix</span></h1>
-            <p class="text-xs text-gray-400">未描画背景表示・首回転軸完全補正・差分中心合成・画面キャプチャ機能</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.5 Complete</span></h1>
+            <p class="text-xs text-gray-400">背景塗破くり抜き処理・Twitch/YouTubeチャット対応・画面キャプチャ</p>
         </div>
         <div class="flex items-center gap-2">
             <!-- コメント非表示切替ボタン -->
@@ -85,10 +85,10 @@
                 <input type="file" id="fileInput" accept="image/*,.yj3d" class="input-ui text-xs cursor-pointer">
             </div>
 
-            <!-- YouTube コメント設定 -->
+            <!-- YouTube / Twitch コメント設定 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3 bg-[#010409] p-2.5 rounded border border-[#30363d]">
                 <div class="flex justify-between items-center">
-                    <label class="text-xs font-bold text-[#79c0ff]">💬 YouTube コメント設定</label>
+                    <label class="text-xs font-bold text-[#79c0ff]">💬 配信コメント設定 (YT/Twitch)</label>
                     <button id="toggleCommentSideBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-2 py-0.5 rounded border border-gray-600">
                         非表示にする
                     </button>
@@ -96,9 +96,9 @@
                 
                 <div class="space-y-1.5">
                     <div>
-                        <span class="text-[10px] text-gray-400">配信URL / 動画ID</span>
+                        <span class="text-[10px] text-gray-400">配信URL / 動画ID / Twitch ID</span>
                         <div class="flex gap-1">
-                            <input type="text" id="ytUrlInput" placeholder="https://youtube.com/live/..." class="input-ui text-xs flex-1">
+                            <input type="text" id="ytUrlInput" placeholder="YouTube URL または Twitch ID" class="input-ui text-xs flex-1">
                             <button id="connectYtBtn" class="bg-[#58a6ff] hover:bg-[#79c0ff] text-black font-bold text-xs px-2 rounded">接続</button>
                         </div>
                     </div>
@@ -234,17 +234,19 @@
                 <!-- 🎙️ 右下1px配置 Moddel-one 音声共有キャプチャ用 Video 要素 -->
                 <video id="moddelVoiceVideo" class="absolute bottom-0 right-0 w-[1px] h-[1px] opacity-0 pointer-events-none z-0" autoplay playsinline></video>
 
-                <!-- コメントボックス -->
-                <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/40 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[320px] origin-top-left">
-                    <div class="text-[10px] text-gray-400 border-b border-gray-700/50 pb-1 mb-2 flex justify-between items-center pointer-events-none">
-                        <span>💬 AutoStudio Live Chat</span>
-                        <span class="text-[8px] bg-red-600 text-white px-1 rounded">LIVE</span>
+                <!-- コメントボックス (YouTube / Twitch 埋め込み両対応) -->
+                <div id="commentBox" class="absolute top-6 left-6 z-30 p-3 bg-black/60 border border-gray-700/50 rounded-lg shadow-xl cursor-move select-none min-w-[240px] max-w-[340px] origin-top-left overflow-hidden">
+                    <div id="commentHeader" class="text-[10px] text-gray-400 border-b border-gray-700/50 pb-1 mb-2 flex justify-between items-center pointer-events-none">
+                        <span id="chatTitleText">💬 Live Chat</span>
+                        <span id="chatBadge" class="text-[8px] bg-red-600 text-white px-1 rounded">LIVE</span>
                     </div>
                     <div id="commentList" class="space-y-2 max-h-60 overflow-hidden">
                         <div class="autostudio-text">配信スタート！わくわく✨</div>
                         <div class="autostudio-text">この2.5Dエンジンすごすぎるｗｗ</div>
                         <div class="autostudio-text">AutoStudio風のテロップ神！！</div>
                     </div>
+                    <!-- Twitch Embed Frame -->
+                    <iframe id="twitchChatFrame" class="w-full h-64 rounded hidden border-0"></iframe>
                 </div>
 
                 <video id="webcam" class="hidden" autoplay playsinline></video>
@@ -319,7 +321,42 @@
         applyAutoStudioTextStyle();
     };
 
-    document.getElementById('connectYtBtn').onclick = () => { if (!document.getElementById('ytUrlInput').value) { alert("YouTube URL を入力してください。"); return; } alert("YouTubeライブチャットに接続しました！"); };
+    // --- 💬 YouTube / Twitch コメントURL判定・接続 ---
+    const ytUrlInput = document.getElementById('ytUrlInput');
+    const commentList = document.getElementById('commentList');
+    const twitchChatFrame = document.getElementById('twitchChatFrame');
+    const chatTitleText = document.getElementById('chatTitleText');
+    const chatBadge = document.getElementById('chatBadge');
+
+    document.getElementById('connectYtBtn').onclick = () => {
+        const val = ytUrlInput.value.trim();
+        if (!val) { alert("YouTube URL または Twitch チャンネル名を入力してください。"); return; }
+
+        if (val.includes('twitch.tv/') || (!val.includes('youtube.com') && !val.includes('youtu.be') && !val.includes('http'))) {
+            // Twitch 判定
+            let channelName = val;
+            if (val.includes('twitch.tv/')) {
+                const parts = val.split('twitch.tv/');
+                channelName = parts[1].split('/')[0].split('?')[0];
+            }
+            const currentHost = window.location.hostname || 'localhost';
+            twitchChatFrame.src = `https://www.twitch.tv/embed/${channelName}/chat?parent=${currentHost}`;
+            twitchChatFrame.classList.remove('hidden');
+            commentList.classList.add('hidden');
+            chatTitleText.innerText = `💜 Twitch Chat (${channelName})`;
+            chatBadge.innerText = "TWITCH";
+            chatBadge.className = "text-[8px] bg-purple-600 text-white px-1 rounded";
+            alert(`Twitch チャンネル [${channelName}] のチャットに接続しました！`);
+        } else {
+            // YouTube 判定
+            twitchChatFrame.classList.add('hidden');
+            commentList.classList.remove('hidden');
+            chatTitleText.innerText = "💬 AutoStudio Live Chat";
+            chatBadge.innerText = "LIVE";
+            chatBadge.className = "text-[8px] bg-red-600 text-white px-1 rounded";
+            alert("YouTube ライブチャットに接続しました！");
+        }
+    };
 
     let isDraggingComment = false, commentOffset = { x: 0, y: 0 };
     commentBox.onmousedown = (e) => { isDraggingComment = true; commentOffset = { x: e.clientX - commentBox.offsetLeft, y: e.clientY - commentBox.offsetTop }; };
@@ -466,7 +503,6 @@
         maskCtx.putImageData(maskImgData, 0, 0); redrawPaintCanvas();
     }
 
-    // マスクが空かどうかを正確に判定する関数
     function isMaskEmpty(maskCanvas) {
         const ctx = maskCanvas.getContext('2d');
         const data = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
@@ -541,19 +577,18 @@
     view3dArea.onmouseup = () => isDraggingAvatar = false; view3dArea.onmouseleave = () => isDraggingAvatar = false;
     view3dArea.onwheel = (e) => { if (e.target.closest('#commentBox')) return; e.preventDefault(); avatarScale = Math.min(Math.max(0.2, avatarScale + (e.deltaY * -0.001)), 3.0); avatarScaleInput.value = avatarScale.toFixed(2); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1); };
 
-    // --- ✨ 3Dモデル生成・構造修正メイン処理 ---
+    // --- ✨ 3Dモデル生成・背景塗破くりぬき修正 ---
     function build3DModel() {
         if (!loadedImage) return;
 
         const isHeadEmpty = isMaskEmpty(maskCanvases.head);
         const isBodyEmpty = isMaskEmpty(maskCanvases.body);
 
-        // 未描画のアラート表示
         if (isHeadEmpty || isBodyEmpty) {
             const missing = [];
             if (isHeadEmpty) missing.push("「頭部」");
             if (isBodyEmpty) missing.push("「胴体」");
-            document.getElementById('statusBadge').innerText = `⚠️ ${missing.join('・')}が描画されていません（背景に固定表示中）`;
+            document.getElementById('statusBadge').innerText = `⚠️ ${missing.join('・')}が描画されていません（塗っていない部位は背景として残ります）`;
         } else {
             document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！";
         }
@@ -564,7 +599,7 @@
         characterGroup = new THREE.Group(); characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); characterGroup.scale.set(avatarScale, avatarScale, 1);
         staticGroup = new THREE.Group(); staticGroup.position.set(avatarPosition.x, avatarPosition.y, -0.05); staticGroup.scale.set(avatarScale, avatarScale, 1);
 
-        // 原本画像と表情差分を中心で重ね合わせたキャンバスを作成
+        // ソース画像のベース（感情差分を含む）
         const sourceCanvas = document.createElement('canvas');
         sourceCanvas.width = loadedImage.width;
         sourceCanvas.height = loadedImage.height;
@@ -580,13 +615,27 @@
 
         const aspect = loadedImage.height / loadedImage.width, totalH = 2.4, totalW = totalH / aspect;
 
-        // 全体背景メッシュ（塗られていない部分を表示するための背景ベース）
-        const bgTexture = new THREE.CanvasTexture(sourceCanvas); bgTexture.needsUpdate = true;
+        // --- 🌟 背景キャンバスの生成（塗ったマスク領域を「消去/くり抜き」処理） ---
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = loadedImage.width;
+        bgCanvas.height = loadedImage.height;
+        const bgCtx = bgCanvas.getContext('2d');
+        bgCtx.drawImage(sourceCanvas, 0, 0);
+        bgCtx.globalCompositeOperation = 'destination-out';
+
+        // 頭部・胴体・口の各塗られたマスク領域を背景から消去して「くり抜き」
+        ['head', 'body', 'mouth'].forEach(part => {
+            if (!isMaskEmpty(maskCanvases[part])) {
+                bgCtx.drawImage(maskCanvases[part], 0, 0);
+            }
+        });
+
+        const bgTexture = new THREE.CanvasTexture(bgCanvas); bgTexture.needsUpdate = true;
         const bgMat = new THREE.MeshBasicMaterial({ map: bgTexture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
         const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), bgMat);
         staticGroup.add(bgMesh);
 
-        // パーツメッシュ生成関数
+        // 動的パーツメッシュ生成
         const createPartMesh = (maskCanvas, zOffset) => {
             const outCanvas = document.createElement('canvas'); outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
             const ctx = outCanvas.getContext('2d');
@@ -609,7 +658,7 @@
             characterGroup.add(chestBone);
         }
 
-        // 2. 頭部パート（頭と胴体をピッタリ繋げて回転）
+        // 2. 頭部パート
         if (!isHeadEmpty) {
             headBone = new THREE.Group();
             headBone.position.set(0, 0, 0.01);
@@ -732,11 +781,9 @@
         const landmarks = results.multiFaceLandmarks[0], nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263];
         const roll = -Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 1.2, yaw = (0.5 - nose.x) * 1.8, pitch = (nose.y - 0.5) * 1.5;
         
-        // 自然な回転を頭部と胴体に適用
         if (headBone) headBone.rotation.set(pitch, yaw, -roll);
         if (chestBone) chestBone.rotation.set(pitch * 0.2, yaw * 0.2, -roll * 0.2);
 
-        // 口パクのアニメーション
         if (mouthMesh) {
             const mouthDistance = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
             mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDistance * 25));
