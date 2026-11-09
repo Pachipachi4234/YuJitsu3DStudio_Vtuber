@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>YuJitsu Studio v4.3 | Complete Edition</title>
+    <title>YuJitsu Studio v4.4 | Final Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- MediaPipe Face Mesh -->
@@ -24,8 +24,8 @@
     <!-- ヘッダー -->
     <header id="mainHeader" class="flex justify-between items-center border-b border-[#30363d] pb-2 flex-none transition-all duration-300">
         <div>
-            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.3 Fix</span></h1>
-            <p class="text-xs text-gray-400">支点位置修正・未描画警告・差分中心合成・画面キャプチャ機能</p>
+            <h1 class="text-xl font-bold text-[#58a6ff]">YuJitsu Studio <span class="text-xs text-green-400 font-normal">v4.4 Final Fix</span></h1>
+            <p class="text-xs text-gray-400">未描画背景表示・首回転軸完全補正・差分中心合成・画面キャプチャ機能</p>
         </div>
         <div class="flex items-center gap-2">
             <!-- コメント非表示切替ボタン -->
@@ -191,7 +191,7 @@
                 </div>
             </div>
 
-            <!-- パーツ選択 (※黒目を削除) -->
+            <!-- パーツ選択 -->
             <div class="space-y-2 border-b border-[#30363d] pb-3">
                 <label class="text-xs font-bold text-[#79c0ff]">3. 塗り分ける部位を選択</label>
                 <div class="grid grid-cols-3 gap-2">
@@ -343,12 +343,8 @@
 
     function toggleEmotionImage(key) {
         if (!emoImageObjects[key]) return;
-        if (currentEmotionKey === key) {
-            currentEmotionKey = null; // OFF
-        } else {
-            currentEmotionKey = key; // ON
-        }
-        build3DModel(); // 感情差分のON/OFFを適用して3D再構築
+        currentEmotionKey = (currentEmotionKey === key) ? null : key;
+        build3DModel();
     }
 
     const paintCanvas = document.getElementById('paintCanvas'), paintCtx = paintCanvas.getContext('2d');
@@ -470,12 +466,12 @@
         maskCtx.putImageData(maskImgData, 0, 0); redrawPaintCanvas();
     }
 
-    // マスクに描画があるかどうか確認する関数
+    // マスクが空かどうかを正確に判定する関数
     function isMaskEmpty(maskCanvas) {
         const ctx = maskCanvas.getContext('2d');
-        const imgData = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height);
-        for (let i = 3; i < imgData.data.length; i += 4) {
-            if (imgData.data[i] > 0) return false;
+        const data = ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height).data;
+        for (let i = 3; i < data.length; i += 4) {
+            if (data[i] > 10) return false;
         }
         return true;
     }
@@ -497,7 +493,7 @@
             const parts = ['head', 'body', 'mouth'];
             parts.forEach(part => {
                 maskCanvases[part].width = w; maskCanvases[part].height = h;
-                if (yjData.masks[part]) {
+                if (yjData.masks && yjData.masks[part]) {
                     const mImg = new Image();
                     mImg.onload = () => {
                         maskCtxs[part].clearRect(0, 0, w, h); maskCtxs[part].drawImage(mImg, 0, 0); loadedCount++;
@@ -521,8 +517,16 @@
     let isDraggingAvatar = false, previousMousePosition = { x: 0, y: 0 }, avatarPosition = { x: 0, y: -0.4 }, avatarScale = 1.0;
     const avatarScaleInput = document.getElementById('avatarScale'), scaleValDisplay = document.getElementById('scaleVal');
 
-    avatarScaleInput.oninput = (e) => { avatarScale = parseFloat(e.target.value); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1); };
-    document.getElementById('resetTransformBtn').onclick = () => { avatarPosition = { x: 0, y: -0.4 }; avatarScale = 1.0; avatarScaleInput.value = 1.0; scaleValDisplay.innerText = "1.00"; if (characterGroup) { characterGroup.position.set(0, -0.4, 0); characterGroup.scale.set(1, 1, 1); } if (staticGroup) { staticGroup.position.set(0, -0.4, 0); staticGroup.scale.set(1, 1, 1); } };
+    avatarScaleInput.oninput = (e) => {
+        avatarScale = parseFloat(e.target.value); scaleValDisplay.innerText = avatarScale.toFixed(2);
+        if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1);
+        if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1);
+    };
+    document.getElementById('resetTransformBtn').onclick = () => {
+        avatarPosition = { x: 0, y: -0.4 }; avatarScale = 1.0; avatarScaleInput.value = 1.0; scaleValDisplay.innerText = "1.00";
+        if (characterGroup) { characterGroup.position.set(0, -0.4, 0); characterGroup.scale.set(1, 1, 1); }
+        if (staticGroup) { staticGroup.position.set(0, -0.4, 0); staticGroup.scale.set(1, 1, 1); }
+    };
 
     view3dArea.onmousedown = (e) => { if (e.target.closest('#commentBox') || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return; isDraggingAvatar = true; previousMousePosition = { x: e.clientX, y: e.clientY }; };
     view3dArea.onmousemove = (e) => {
@@ -537,19 +541,19 @@
     view3dArea.onmouseup = () => isDraggingAvatar = false; view3dArea.onmouseleave = () => isDraggingAvatar = false;
     view3dArea.onwheel = (e) => { if (e.target.closest('#commentBox')) return; e.preventDefault(); avatarScale = Math.min(Math.max(0.2, avatarScale + (e.deltaY * -0.001)), 3.0); avatarScaleInput.value = avatarScale.toFixed(2); scaleValDisplay.innerText = avatarScale.toFixed(2); if (characterGroup) characterGroup.scale.set(avatarScale, avatarScale, 1); if (staticGroup) staticGroup.scale.set(avatarScale, avatarScale, 1); };
 
-    // --- ✨ 3Dモデル生成メイン処理 ---
+    // --- ✨ 3Dモデル生成・構造修正メイン処理 ---
     function build3DModel() {
         if (!loadedImage) return;
 
         const isHeadEmpty = isMaskEmpty(maskCanvases.head);
         const isBodyEmpty = isMaskEmpty(maskCanvases.body);
 
-        // ※未描画エラー判定＆警告通知
+        // 未描画のアラート表示
         if (isHeadEmpty || isBodyEmpty) {
             const missing = [];
             if (isHeadEmpty) missing.push("「頭部」");
             if (isBodyEmpty) missing.push("「胴体」");
-            document.getElementById('statusBadge').innerText = `⚠️ ${missing.join('・')}が描画されていません！（動かないパーツとして追加されました）`;
+            document.getElementById('statusBadge').innerText = `⚠️ ${missing.join('・')}が描画されていません（背景に固定表示中）`;
         } else {
             document.getElementById('statusBadge').innerText = "✨ 3Dモデル生成完了！";
         }
@@ -558,16 +562,15 @@
         if (staticGroup) scene.remove(staticGroup);
 
         characterGroup = new THREE.Group(); characterGroup.position.set(avatarPosition.x, avatarPosition.y, 0); characterGroup.scale.set(avatarScale, avatarScale, 1);
-        staticGroup = new THREE.Group(); staticGroup.position.set(avatarPosition.x, avatarPosition.y, 0); staticGroup.scale.set(avatarScale, avatarScale, 1);
+        staticGroup = new THREE.Group(); staticGroup.position.set(avatarPosition.x, avatarPosition.y, -0.05); staticGroup.scale.set(avatarScale, avatarScale, 1);
 
-        // 原本画像と表情差分を中心で重ね合わせたテクスチャ用キャンバスを作成
+        // 原本画像と表情差分を中心で重ね合わせたキャンバスを作成
         const sourceCanvas = document.createElement('canvas');
         sourceCanvas.width = loadedImage.width;
         sourceCanvas.height = loadedImage.height;
         const sCtx = sourceCanvas.getContext('2d');
         sCtx.drawImage(loadedImage, 0, 0);
 
-        // 1〜5の表情差分がONなら画像中心に重ねて描画
         if (currentEmotionKey && emoImageObjects[currentEmotionKey]) {
             const emoImg = emoImageObjects[currentEmotionKey];
             const destX = (sourceCanvas.width - emoImg.width) / 2;
@@ -577,7 +580,14 @@
 
         const aspect = loadedImage.height / loadedImage.width, totalH = 2.4, totalW = totalH / aspect;
 
-        const createPartMesh = (maskCanvas, zOffset, parentGroup, offsetY = 0) => {
+        // 全体背景メッシュ（塗られていない部分を表示するための背景ベース）
+        const bgTexture = new THREE.CanvasTexture(sourceCanvas); bgTexture.needsUpdate = true;
+        const bgMat = new THREE.MeshBasicMaterial({ map: bgTexture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
+        const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), bgMat);
+        staticGroup.add(bgMesh);
+
+        // パーツメッシュ生成関数
+        const createPartMesh = (maskCanvas, zOffset) => {
             const outCanvas = document.createElement('canvas'); outCanvas.width = loadedImage.width; outCanvas.height = loadedImage.height;
             const ctx = outCanvas.getContext('2d');
             ctx.drawImage(sourceCanvas, 0, 0);
@@ -586,50 +596,41 @@
 
             const texture = new THREE.CanvasTexture(outCanvas); texture.needsUpdate = true;
             const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.01, side: THREE.DoubleSide });
-            const geom = new THREE.PlaneGeometry(totalW, totalH);
-            // ピボット（支点）の位置調整
-            geom.translate(0, offsetY, 0);
-
-            const mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(0, -offsetY, zOffset);
-            parentGroup.add(mesh);
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(totalW, totalH), mat);
+            mesh.position.set(0, 0, zOffset);
             return mesh;
         };
 
-        // 1. 胴体パート生成
+        // 1. 胴体パート
         if (!isBodyEmpty) {
             chestBone = new THREE.Group(); chestBone.position.set(0, 0, 0);
-            createPartMesh(maskCanvases.body, 0, chestBone);
+            const bodyMesh = createPartMesh(maskCanvases.body, 0);
+            chestBone.add(bodyMesh);
             characterGroup.add(chestBone);
-        } else {
-            // 胴体が描かれていない場合、静的(動かない)パーツとして表示
-            createPartMesh(maskCanvases.body, 0, staticGroup);
         }
 
-        // 2. 頭部パート生成（支点を「胴体の一番上＝首元」に変更：中心から下方向にオフセット）
-        const headPivotOffsetY = totalH * 0.25; // 首元に支点を設置
-
+        // 2. 頭部パート（頭と胴体をピッタリ繋げて回転）
         if (!isHeadEmpty) {
             headBone = new THREE.Group();
-            // 首元の位置にボーンを配置
-            headBone.position.set(0, headPivotOffsetY, 0.01);
-            
-            createPartMesh(maskCanvases.head, 0, headBone, -headPivotOffsetY);
-            mouthMesh = createPartMesh(maskCanvases.mouth, 0.02, headBone, -headPivotOffsetY);
+            headBone.position.set(0, 0, 0.01);
+
+            const headMesh = createPartMesh(maskCanvases.head, 0);
+            headBone.add(headMesh);
+
+            if (!isMaskEmpty(maskCanvases.mouth)) {
+                mouthMesh = createPartMesh(maskCanvases.mouth, 0.01);
+                headBone.add(mouthMesh);
+            }
 
             if (chestBone) {
                 chestBone.add(headBone);
             } else {
                 characterGroup.add(headBone);
             }
-        } else {
-            // 頭部が描かれていない場合、静的パーツとして表示
-            createPartMesh(maskCanvases.head, 0, staticGroup);
-            createPartMesh(maskCanvases.mouth, 0.02, staticGroup);
         }
 
-        scene.add(characterGroup);
         scene.add(staticGroup);
+        scene.add(characterGroup);
         applyAutoStudioTextStyle();
     }
 
@@ -731,11 +732,11 @@
         const landmarks = results.multiFaceLandmarks[0], nose = landmarks[1], leftEye = landmarks[33], rightEye = landmarks[263];
         const roll = -Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * 1.2, yaw = (0.5 - nose.x) * 1.8, pitch = (nose.y - 0.5) * 1.5;
         
-        // 首元を軸にした回転を適用
+        // 自然な回転を頭部と胴体に適用
         if (headBone) headBone.rotation.set(pitch, yaw, -roll);
         if (chestBone) chestBone.rotation.set(pitch * 0.2, yaw * 0.2, -roll * 0.2);
 
-        // 口パクの開閉アニメーション
+        // 口パクのアニメーション
         if (mouthMesh) {
             const mouthDistance = Math.hypot(landmarks[13].x - landmarks[14].x, landmarks[13].y - landmarks[14].y);
             mouthMesh.scale.y = Math.max(0.1, Math.min(2.5, mouthDistance * 25));
